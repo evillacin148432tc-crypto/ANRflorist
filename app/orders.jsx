@@ -159,13 +159,13 @@ export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, []),
-  );
+  // Recreated when the user changes, so it never runs with a stale null user
+  const load = useCallback(async () => {
+    if (!user?.id) {
+      setOrders([]); // guest, or auth not ready yet
+      return;
+    }
 
-  async function load() {
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -173,7 +173,13 @@ export default function Orders() {
       .order("created_at", { ascending: false });
 
     if (!error) setOrders(data);
-  }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   async function refresh() {
     setRefreshing(true);

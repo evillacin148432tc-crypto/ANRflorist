@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   FlatList,
   StyleSheet,
   RefreshControl,
@@ -11,9 +12,11 @@ import {
   Platform,
 } from "react-native";
 
-import { Link, useFocusEffect, useRouter } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
+import StaffHeader, { EmptyState } from "../lib/StaffHeader";
+import { colors, spacing, radius } from "../lib/theme";
 
 function showMessage(title, message) {
   if (Platform.OS === "web") {
@@ -37,10 +40,10 @@ function confirmAction(title, message) {
 }
 
 export default function Products() {
-  const router = useRouter();
   const { role } = useAuth();
 
   const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
@@ -96,23 +99,38 @@ export default function Products() {
     setProducts((prev) => prev.filter((p) => p.id !== item.id));
   }
 
+  const filtered = products.filter((p) => {
+    const text = `${p.name || ""} ${p.category || ""}`.toLowerCase();
+    return text.includes(search.toLowerCase());
+  });
+
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.back}>← Back to Inventory</Text>
-      </Pressable>
+      <StaffHeader
+        title="Bouquets"
+        subtitle={`${products.length} item${products.length === 1 ? "" : "s"}`}
+        right={
+          <Link href="/product-edit" asChild>
+            <Pressable style={styles.addPill}>
+              <Text style={styles.addPillText}>+ Add new</Text>
+            </Pressable>
+          </Link>
+        }
+      />
 
-      <Text style={styles.title}>Bouquets</Text>
-
-      <Link href="/product-edit" asChild>
-        <Pressable style={styles.addButton}>
-          <Text style={styles.addText}>+ Add New Bouquet</Text>
-        </Pressable>
-      </Link>
+      <TextInput
+        style={styles.search}
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Search bouquets..."
+        placeholderTextColor={colors.inkSoft}
+      />
 
       <FlatList
-        data={products}
+        data={filtered}
         keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} />
         }
@@ -123,25 +141,44 @@ export default function Products() {
                 <Image source={{ uri: item.image_url }} style={styles.thumb} />
               ) : (
                 <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                  <Text style={{ fontSize: 24 }}>💐</Text>
+                  <Text style={{ fontSize: 30 }}>💐</Text>
                 </View>
               )}
 
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.statusPill,
+                      {
+                        backgroundColor: item.is_available
+                          ? colors.fernTint
+                          : colors.brickTint,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: item.is_available ? colors.fern : colors.brick,
+                        },
+                      ]}
+                    >
+                      {item.is_available ? "Available" : "Unavailable"}
+                    </Text>
+                  </View>
+                </View>
+
                 {!!item.variant && (
                   <Text style={styles.variant}>{item.variant}</Text>
                 )}
-                <Text style={styles.category}>Category: {item.category}</Text>
+                <Text style={styles.category}>{item.category}</Text>
                 <Text style={styles.price}>₱{item.price}</Text>
-                <Text
-                  style={[
-                    styles.status,
-                    { color: item.is_available ? "green" : "red" },
-                  ]}
-                >
-                  {item.is_available ? "AVAILABLE" : "UNAVAILABLE"}
-                </Text>
               </View>
             </View>
 
@@ -154,7 +191,7 @@ export default function Products() {
                 asChild
               >
                 <Pressable style={styles.editButton}>
-                  <Text style={styles.buttonText}>Edit</Text>
+                  <Text style={styles.editText}>Edit</Text>
                 </Pressable>
               </Link>
 
@@ -163,13 +200,23 @@ export default function Products() {
                   style={styles.deleteButton}
                   onPress={() => deleteProduct(item)}
                 >
-                  <Text style={styles.buttonText}>Delete</Text>
+                  <Text style={styles.deleteText}>Delete</Text>
                 </Pressable>
               )}
             </View>
           </View>
         )}
-        ListEmptyComponent={<Text>No bouquets yet.</Text>}
+        ListEmptyComponent={
+          <EmptyState
+            icon="💐"
+            title={products.length === 0 ? "No bouquets yet" : "No matches"}
+            text={
+              products.length === 0
+                ? "Tap “+ Add new” to create your first bouquet."
+                : "Try a different search."
+            }
+          />
+        }
       />
     </View>
   );
@@ -178,110 +225,99 @@ export default function Products() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
+    padding: spacing.lg,
+    backgroundColor: colors.paper,
   },
 
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
+  addPill: {
+    backgroundColor: colors.plum,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
+  addPillText: { color: colors.white, fontWeight: "700", fontSize: 13 },
 
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
-
-  addButton: {
-    backgroundColor: "#4CAF50",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-
-  addText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+  search: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.lg,
+    fontSize: 14,
+    backgroundColor: colors.white,
+    color: colors.ink,
+    marginBottom: spacing.md,
   },
 
   card: {
-    padding: 15,
-    marginBottom: 15,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.line,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
 
   row: {
     flexDirection: "row",
-    gap: 12,
+    gap: spacing.md,
   },
 
   thumb: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
-    backgroundColor: "#eee",
+    width: 84,
+    height: 84,
+    borderRadius: radius.md,
+    backgroundColor: colors.plumTint,
   },
+  thumbPlaceholder: { alignItems: "center", justifyContent: "center" },
 
-  thumbPlaceholder: {
+  nameRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
   },
+  name: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.ink },
 
-  name: {
-    fontSize: 18,
-    fontWeight: "bold",
+  statusPill: {
+    borderRadius: radius.pill,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
   },
+  statusText: { fontSize: 11, fontWeight: "700" },
 
-  variant: {
-    color: "#555",
-  },
-
-  category: {
-    marginTop: 4,
-    color: "gray",
-  },
-
+  variant: { color: colors.inkSoft, fontSize: 13, marginTop: 2 },
+  category: { color: colors.inkSoft, fontSize: 12, marginTop: 2 },
   price: {
-    marginTop: 4,
-    fontWeight: "600",
-  },
-
-  status: {
-    marginTop: 4,
-    fontWeight: "bold",
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.plum,
   },
 
   buttonRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
 
   editButton: {
     flex: 1,
-    backgroundColor: "#2196F3",
-    padding: 10,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.plum,
+    backgroundColor: colors.white,
+    borderRadius: radius.sm,
+    paddingVertical: 10,
     alignItems: "center",
   },
+  editText: { color: colors.plum, fontWeight: "700" },
 
   deleteButton: {
     flex: 1,
-    backgroundColor: "red",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: colors.brickTint,
+    borderRadius: radius.sm,
+    paddingVertical: 10,
     alignItems: "center",
   },
-
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  deleteText: { color: colors.brick, fontWeight: "700" },
 });

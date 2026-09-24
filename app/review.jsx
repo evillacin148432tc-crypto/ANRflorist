@@ -13,9 +13,11 @@ import {
   Linking,
 } from "react-native";
 
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
+import StaffHeader, { EmptyState } from "../lib/StaffHeader";
+import { colors, spacing, radius } from "../lib/theme";
 
 function showMessage(title, message) {
   if (Platform.OS === "web") {
@@ -120,31 +122,54 @@ function PendingCard({ item, adminId, onDone }) {
   }
 
   const hasPin = item.latitude && item.longitude;
+  const initial = (item.full_name || "?").trim()[0]?.toUpperCase();
 
   return (
     <View style={styles.card}>
-      <Text style={styles.name}>{item.full_name}</Text>
-      <Text style={styles.line}>Phone: {item.phone || "-"}</Text>
-      <Text style={styles.line}>
-        Address: {item.address || "-"}, {item.barangay || "-"},{" "}
-        {item.city || "Tagum City"}
-      </Text>
+      <View style={styles.topRow}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initial}</Text>
+        </View>
 
-      {hasPin && (
-        <Pressable
-          onPress={() =>
-            Linking.openURL(
-              `https://www.google.com/maps?q=${item.latitude},${item.longitude}`,
-            )
-          }
-        >
-          <Text style={styles.link}>Open map pin in Google Maps</Text>
-        </Pressable>
-      )}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.full_name}
+          </Text>
+          {!!item.id_submitted_at && (
+            <Text style={styles.submitted}>
+              Submitted {new Date(item.id_submitted_at).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.pendingPill}>
+          <Text style={styles.pendingText}>Pending</Text>
+        </View>
+      </View>
+
+      <View style={styles.infoBox}>
+        <Text style={styles.line}>📱 {item.phone || "-"}</Text>
+        <Text style={styles.line}>
+          📍 {item.address || "-"}, {item.barangay || "-"},{" "}
+          {item.city || "Tagum City"}
+        </Text>
+
+        {hasPin && (
+          <Pressable
+            onPress={() =>
+              Linking.openURL(
+                `https://www.google.com/maps?q=${item.latitude},${item.longitude}`,
+              )
+            }
+          >
+            <Text style={styles.link}>Open map pin in Google Maps →</Text>
+          </Pressable>
+        )}
+      </View>
 
       <Pressable style={styles.outlineButton} onPress={toggleId}>
         <Text style={styles.outlineText}>
-          {loadingId ? "Loading..." : idUrl ? "Hide ID" : "View ID"}
+          {loadingId ? "Loading..." : idUrl ? "Hide ID" : "🪪  View ID"}
         </Text>
       </Pressable>
 
@@ -161,6 +186,7 @@ function PendingCard({ item, adminId, onDone }) {
         value={remarks}
         onChangeText={setRemarks}
         placeholder="Remarks (required if rejecting)"
+        placeholderTextColor={colors.inkSoft}
       />
 
       <View style={styles.buttonRow}>
@@ -169,7 +195,7 @@ function PendingCard({ item, adminId, onDone }) {
           onPress={() => decide("approved")}
           disabled={busy}
         >
-          <Text style={styles.buttonText}>Approve</Text>
+          <Text style={styles.approveText}>✓ Approve</Text>
         </Pressable>
 
         <Pressable
@@ -177,7 +203,7 @@ function PendingCard({ item, adminId, onDone }) {
           onPress={() => decide("rejected")}
           disabled={busy}
         >
-          <Text style={styles.buttonText}>Reject</Text>
+          <Text style={styles.rejectText}>Reject</Text>
         </Pressable>
       </View>
     </View>
@@ -185,7 +211,6 @@ function PendingCard({ item, adminId, onDone }) {
 }
 
 export default function ReviewCustomers() {
-  const router = useRouter();
   const { user } = useAuth();
 
   const [pending, setPending] = useState([]);
@@ -221,22 +246,34 @@ export default function ReviewCustomers() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.back}>← Back to Inventory</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Pending Customers</Text>
+      <StaffHeader
+        title="Pending Customers"
+        subtitle={
+          pending.length > 0
+            ? `${pending.length} waiting for review`
+            : "Verify new customers"
+        }
+      />
 
       <FlatList
         data={pending}
         keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} />
         }
         renderItem={({ item }) => (
           <PendingCard item={item} adminId={user.id} onDone={load} />
         )}
-        ListEmptyComponent={<Text>No customers waiting for verification.</Text>}
+        ListEmptyComponent={
+          <EmptyState
+            icon="🪪"
+            title="All caught up"
+            text="No customers waiting for verification."
+          />
+        }
       />
     </View>
   );
@@ -245,103 +282,109 @@ export default function ReviewCustomers() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 15,
+    padding: spacing.lg,
+    backgroundColor: colors.paper,
   },
 
   card: {
-    padding: 15,
-    marginBottom: 15,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.line,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
 
-  name: {
-    fontSize: 20,
-    fontWeight: "bold",
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
 
-  line: {
-    marginTop: 4,
-    color: "#444",
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  avatarText: { fontSize: 18, fontWeight: "700", color: colors.plum },
 
-  link: {
-    marginTop: 6,
-    color: "#2196F3",
-    fontWeight: "600",
+  name: { fontSize: 17, fontWeight: "700", color: colors.ink },
+  submitted: { color: colors.inkSoft, fontSize: 12, marginTop: 2 },
+
+  pendingPill: {
+    backgroundColor: colors.marigoldTint,
+    borderRadius: radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
   },
+  pendingText: { color: colors.marigold, fontSize: 12, fontWeight: "700" },
+
+  infoBox: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    gap: 6,
+  },
+  line: { color: colors.ink, fontSize: 14 },
+  link: { color: colors.plum, fontWeight: "700", fontSize: 13, marginTop: 2 },
 
   outlineButton: {
-    marginTop: 12,
+    marginTop: spacing.md,
     borderWidth: 1,
-    borderColor: "#2196F3",
-    borderRadius: 8,
-    padding: 10,
+    borderColor: colors.plum,
+    backgroundColor: colors.white,
+    borderRadius: radius.sm,
+    paddingVertical: 10,
     alignItems: "center",
   },
-
-  outlineText: {
-    color: "#2196F3",
-    fontWeight: "600",
-  },
+  outlineText: { color: colors.plum, fontWeight: "700" },
 
   idImage: {
     width: "100%",
     height: 260,
-    marginTop: 10,
-    borderRadius: 8,
-    backgroundColor: "#eee",
+    marginTop: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.plumTint,
   },
 
   input: {
-    marginTop: 12,
+    marginTop: spacing.md,
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
     padding: 10,
     fontSize: 15,
-    backgroundColor: "#fff",
+    backgroundColor: colors.white,
+    color: colors.ink,
   },
 
   buttonRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
 
   approve: {
-    flex: 1,
-    backgroundColor: "#4CAF50",
-    padding: 10,
-    borderRadius: 8,
+    flex: 2,
+    backgroundColor: colors.fern,
+    borderRadius: radius.sm,
+    paddingVertical: 12,
     alignItems: "center",
   },
+  approveText: { color: colors.white, fontWeight: "700" },
 
   reject: {
     flex: 1,
-    backgroundColor: "red",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: colors.brickTint,
+    borderRadius: radius.sm,
+    paddingVertical: 12,
     alignItems: "center",
   },
-
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  rejectText: { color: colors.brick, fontWeight: "700" },
 });

@@ -8,11 +8,14 @@ import {
   RefreshControl,
 } from "react-native";
 
-import { Link, useFocusEffect, useRouter } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
+import StaffHeader, { EmptyState } from "../lib/StaffHeader";
+import { colors, spacing, radius } from "../lib/theme";
+
+const MEDALS = ["🥇", "🥈", "🥉"];
 
 export default function Reports() {
-  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
   const [revenue, setRevenue] = useState(0);
@@ -100,80 +103,153 @@ export default function Reports() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={refresh} />
       }
     >
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.back}>← Back to Inventory</Text>
-      </Pressable>
+      <StaffHeader title="Reports" subtitle="Sales and order overview" />
 
-      <Text style={styles.title}>Reports</Text>
-
+      {/* Revenue */}
       <View style={styles.revenueCard}>
         <Text style={styles.revenueLabel}>
-          Total Revenue (Delivered Orders)
+          Total revenue · delivered orders
         </Text>
-        <Text style={styles.revenueValue}>₱{revenue.toFixed(2)}</Text>
+        <Text style={styles.revenueValue}>
+          ₱
+          {revenue.toLocaleString("en-PH", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </Text>
+        <Text style={styles.revenueHint}>
+          {counts.delivered} delivered order{counts.delivered === 1 ? "" : "s"}
+        </Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Orders by Status</Text>
+      {/* Status tiles */}
+      <Text style={styles.sectionLabel}>Orders by status</Text>
       <View style={styles.statsRow}>
-        <StatBox label="Active" value={activeOrders} color="#2196F3" />
-        <StatBox label="Delivered" value={counts.delivered} color="green" />
-        <StatBox label="Cancelled" value={counts.cancelled} color="red" />
+        <StatBox
+          icon="🛎️"
+          label="Active"
+          value={activeOrders}
+          color={colors.plum}
+          tint={colors.plumTint}
+        />
+        <StatBox
+          icon="✅"
+          label="Delivered"
+          value={counts.delivered}
+          color={colors.fern}
+          tint={colors.fernTint}
+        />
+        <StatBox
+          icon="✖️"
+          label="Cancelled"
+          value={counts.cancelled}
+          color={colors.brick}
+          tint={colors.brickTint}
+        />
       </View>
       <View style={styles.statsRow}>
-        <StatBox label="Pending" value={counts.pending} color="#E67E00" />
-        <StatBox label="Preparing" value={counts.preparing} color="#2196F3" />
         <StatBox
-          label="Out for Delivery"
+          icon="⏳"
+          label="Pending"
+          value={counts.pending}
+          color={colors.marigold}
+          tint={colors.marigoldTint}
+        />
+        <StatBox
+          icon="🛠️"
+          label="Preparing"
+          value={counts.preparing}
+          color={colors.plum}
+          tint={colors.plumTint}
+        />
+        <StatBox
+          icon="🚚"
+          label="Out for delivery"
           value={counts.out_for_delivery}
-          color="#9C27B0"
+          color="#2F7D9A"
+          tint="#E3F1F6"
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Best-Selling Bouquets</Text>
-      <Text style={styles.hint}>Based on delivered orders.</Text>
+      {/* Best sellers */}
+      <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>
+        Best-selling bouquets
+      </Text>
+      <View style={styles.listCard}>
+        {bestSellers.length === 0 ? (
+          <EmptyState
+            icon="💐"
+            title="No sales yet"
+            text="Best sellers appear here once orders are delivered."
+          />
+        ) : (
+          bestSellers.map((b, idx) => (
+            <View
+              key={b.name}
+              style={[
+                styles.sellerRow,
+                idx < bestSellers.length - 1 && styles.rowDivider,
+              ]}
+            >
+              <Text style={styles.sellerRank}>
+                {MEDALS[idx] || `${idx + 1}.`}
+              </Text>
+              <Text style={styles.sellerName} numberOfLines={1}>
+                {b.name}
+              </Text>
+              <View style={styles.qtyPill}>
+                <Text style={styles.qtyText}>{b.qty} sold</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
 
-      {bestSellers.length === 0 ? (
-        <Text style={styles.empty}>No delivered orders yet.</Text>
-      ) : (
-        bestSellers.map((b, idx) => (
-          <View key={b.name} style={styles.sellerRow}>
-            <Text style={styles.sellerRank}>{idx + 1}.</Text>
-            <Text style={styles.sellerName}>{b.name}</Text>
-            <Text style={styles.sellerQty}>{b.qty} sold</Text>
-          </View>
-        ))
-      )}
-
-      <Text style={[styles.sectionTitle, { marginTop: 30 }]}>
-        Audit Records
+      {/* Audit records */}
+      <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>
+        Audit records
       </Text>
       <Text style={styles.hint}>
         Full, tamper-proof logs for training and review.
       </Text>
 
-      <Link href="/stock-history" asChild>
-        <Pressable style={styles.linkCard}>
-          <Text style={styles.linkCardText}>Stock Movement Log →</Text>
-        </Pressable>
-      </Link>
+      <View style={styles.listCard}>
+        <Link href="/stock-history" asChild>
+          <Pressable style={styles.linkRow}>
+            <View style={styles.linkIcon}>
+              <Text style={{ fontSize: 16 }}>📦</Text>
+            </View>
+            <Text style={styles.linkText}>Stock movement log</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </Link>
 
-      <Link href="/verification-history" asChild>
-        <Pressable style={styles.linkCard}>
-          <Text style={styles.linkCardText}>Customer Verification Log →</Text>
-        </Pressable>
-      </Link>
+        <View style={styles.rowDividerLine} />
+
+        <Link href="/verification-history" asChild>
+          <Pressable style={styles.linkRow}>
+            <View style={styles.linkIcon}>
+              <Text style={{ fontSize: 16 }}>🪪</Text>
+            </View>
+            <Text style={styles.linkText}>Customer verification log</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </Link>
+      </View>
     </ScrollView>
   );
 }
 
-function StatBox({ label, value, color }) {
+function StatBox({ icon, label, value, color, tint }) {
   return (
-    <View style={styles.statBox}>
+    <View style={[styles.statBox, { backgroundColor: tint }]}>
+      <Text style={{ fontSize: 16 }}>{icon}</Text>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -183,122 +259,114 @@ function StatBox({ label, value, color }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
-
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 15,
+    backgroundColor: colors.paper,
   },
 
   revenueCard: {
-    backgroundColor: "#E8F5E9",
-    borderRadius: 12,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#A5D6A7",
-    marginBottom: 20,
+    backgroundColor: colors.plum,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
-
   revenueLabel: {
-    color: "#2E7D32",
+    color: colors.white,
+    opacity: 0.85,
     fontWeight: "600",
+    fontSize: 13,
   },
-
   revenueValue: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#1B5E20",
+    fontSize: 34,
+    fontWeight: "700",
+    color: colors.white,
+    marginTop: 6,
+  },
+  revenueHint: {
+    color: colors.white,
+    opacity: 0.75,
+    fontSize: 12,
     marginTop: 4,
   },
 
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 10,
-    marginBottom: 8,
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.inkSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
   },
 
   hint: {
-    color: "gray",
-    marginBottom: 10,
-    fontSize: 13,
+    color: colors.inkSoft,
+    fontSize: 12,
+    marginBottom: spacing.sm,
+    marginTop: -4,
   },
 
   statsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
 
   statBox: {
     flex: 1,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 12,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 6,
     alignItems: "center",
+    gap: 2,
   },
-
-  statValue: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-
+  statValue: { fontSize: 22, fontWeight: "700" },
   statLabel: {
-    marginTop: 4,
-    color: "#555",
-    fontSize: 12,
+    color: colors.inkSoft,
+    fontSize: 11,
+    fontWeight: "600",
     textAlign: "center",
   },
 
-  empty: {
-    color: "gray",
+  listCard: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    overflow: "hidden",
   },
 
   sellerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    gap: spacing.sm,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
   },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.line },
+  rowDividerLine: { height: 1, backgroundColor: colors.line },
+  sellerRank: { width: 28, fontSize: 18, fontWeight: "700", color: colors.ink },
+  sellerName: { flex: 1, fontWeight: "700", color: colors.ink, fontSize: 15 },
+  qtyPill: {
+    backgroundColor: colors.plumTint,
+    borderRadius: radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  qtyText: { color: colors.plum, fontSize: 12, fontWeight: "700" },
 
-  sellerRank: {
-    fontWeight: "bold",
-    width: 20,
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
   },
-
-  sellerName: {
-    flex: 1,
-    fontWeight: "600",
+  linkIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  sellerQty: {
-    color: "#555",
-  },
-
-  linkCard: {
-    borderWidth: 1,
-    borderColor: "#2196F3",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
-  },
-
-  linkCardText: {
-    color: "#2196F3",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
+  linkText: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.ink },
+  chevron: { fontSize: 22, color: colors.inkSoft },
 });

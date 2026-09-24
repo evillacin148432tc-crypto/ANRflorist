@@ -11,11 +11,26 @@ import {
   Platform,
 } from "react-native";
 
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
+import StaffHeader, { EmptyState } from "../lib/StaffHeader";
+import { colors, spacing, radius } from "../lib/theme";
 
 const ROLES = ["customer", "staff", "admin"];
+
+const ROLE_STYLE = {
+  customer: { bg: colors.plumTint, fg: colors.plum },
+  staff: { bg: colors.marigoldTint, fg: colors.marigold },
+  admin: { bg: colors.brickTint, fg: colors.brick },
+};
+
+const VERIFY_STYLE = {
+  verified: { bg: colors.fernTint, fg: colors.fern, label: "Verified" },
+  pending: { bg: colors.marigoldTint, fg: colors.marigold, label: "Pending" },
+  rejected: { bg: colors.brickTint, fg: colors.brick, label: "Rejected" },
+  unverified: { bg: colors.line, fg: colors.inkSoft, label: "Unverified" },
+};
 
 function showMessage(title, message) {
   if (Platform.OS === "web") {
@@ -66,34 +81,61 @@ function UserRow({ item, isSelf, onChanged }) {
     onChanged();
   }
 
+  const initial = (item.full_name || item.email || "?")
+    .trim()[0]
+    ?.toUpperCase();
+  const roleStyle = ROLE_STYLE[item.role] || ROLE_STYLE.customer;
+  const verify =
+    VERIFY_STYLE[item.verification_status] || VERIFY_STYLE.unverified;
+
   return (
     <View style={styles.card}>
-      <Text style={styles.name}>
-        {item.full_name || "(no name)"} {isSelf ? "(you)" : ""}
-      </Text>
-      <Text style={styles.email}>{item.email}</Text>
-      <Text style={styles.line}>
-        Role: <Text style={styles.bold}>{item.role}</Text> | Verification:{" "}
-        {item.verification_status}
-      </Text>
+      <View style={styles.topRow}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initial}</Text>
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name} numberOfLines={1}>
+            {item.full_name || "(no name)"}
+            {isSelf ? "  (you)" : ""}
+          </Text>
+          <Text style={styles.email} numberOfLines={1}>
+            {item.email}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.badgeRow}>
+        <View style={[styles.badge, { backgroundColor: roleStyle.bg }]}>
+          <Text style={[styles.badgeText, { color: roleStyle.fg }]}>
+            {item.role}
+          </Text>
+        </View>
+
+        <View style={[styles.badge, { backgroundColor: verify.bg }]}>
+          <Text style={[styles.badgeText, { color: verify.fg }]}>
+            {verify.label}
+          </Text>
+        </View>
+      </View>
 
       {!isSelf && (
-        <View style={styles.roleRow}>
+        <View style={[styles.segment, busy && { opacity: 0.6 }]}>
           {ROLES.map((r) => (
             <Pressable
               key={r}
               style={[
-                styles.roleChip,
-                item.role === r && styles.roleChipActive,
-                busy && { opacity: 0.6 },
+                styles.segmentItem,
+                item.role === r && styles.segmentItemActive,
               ]}
               onPress={() => changeRole(r)}
               disabled={busy}
             >
               <Text
                 style={[
-                  styles.roleChipText,
-                  item.role === r && styles.roleChipTextActive,
+                  styles.segmentText,
+                  item.role === r && styles.segmentTextActive,
                 ]}
               >
                 {r}
@@ -107,7 +149,6 @@ function UserRow({ item, isSelf, onChanged }) {
 }
 
 export default function AdminUsers() {
-  const router = useRouter();
   const { user } = useAuth();
 
   const [users, setUsers] = useState([]);
@@ -145,29 +186,37 @@ export default function AdminUsers() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.back}>← Back to Inventory</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Manage Users</Text>
+      <StaffHeader
+        title="Manage Users"
+        subtitle={`${users.length} account${users.length === 1 ? "" : "s"}`}
+      />
 
       <TextInput
-        style={styles.input}
+        style={styles.search}
         value={search}
         onChangeText={setSearch}
         placeholder="Search by name or email..."
+        placeholderTextColor={colors.inkSoft}
       />
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} />
         }
         renderItem={({ item }) => (
           <UserRow item={item} isSelf={item.id === user.id} onChanged={load} />
         )}
-        ListEmptyComponent={<Text>No users found.</Text>}
+        ListEmptyComponent={
+          <EmptyState
+            icon="🔍"
+            title="No users found"
+            text="Try another name or email."
+          />
+        }
       />
     </View>
   );
@@ -176,87 +225,88 @@ export default function AdminUsers() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
+    backgroundColor: colors.paper,
+    padding: spacing.lg,
   },
 
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
-
-  input: {
+  search: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
-    marginBottom: 15,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.lg,
+    fontSize: 14,
+    backgroundColor: colors.white,
+    color: colors.ink,
+    marginBottom: spacing.md,
   },
 
   card: {
-    padding: 15,
-    marginBottom: 12,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.line,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
 
-  name: {
-    fontSize: 17,
-    fontWeight: "bold",
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
 
-  email: {
-    color: "#555",
-    marginTop: 2,
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  line: {
-    marginTop: 6,
-    color: "#444",
-  },
+  avatarText: { fontSize: 18, fontWeight: "700", color: colors.plum },
 
-  bold: {
-    fontWeight: "bold",
-  },
+  name: { fontSize: 16, fontWeight: "700", color: colors.ink },
+  email: { color: colors.inkSoft, fontSize: 13, marginTop: 2 },
 
-  roleRow: {
+  badgeRow: {
     flexDirection: "row",
     gap: 8,
-    marginTop: 10,
+    marginTop: spacing.md,
   },
 
-  roleChip: {
+  badge: {
+    borderRadius: radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+
+  badgeText: { fontSize: 12, fontWeight: "700", textTransform: "capitalize" },
+
+  segment: {
+    flexDirection: "row",
+    backgroundColor: colors.plumTint,
+    borderRadius: radius.pill,
+    padding: 4,
+    marginTop: spacing.md,
+  },
+
+  segmentItem: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#999",
+    borderRadius: radius.pill,
     alignItems: "center",
   },
 
-  roleChipActive: {
-    backgroundColor: "#2196F3",
-    borderColor: "#2196F3",
-  },
+  segmentItemActive: { backgroundColor: colors.plum },
 
-  roleChipText: {
-    color: "#333",
-    fontWeight: "600",
+  segmentText: {
     fontSize: 13,
+    fontWeight: "600",
+    color: colors.inkSoft,
+    textTransform: "capitalize",
   },
 
-  roleChipTextActive: {
-    color: "#fff",
-  },
+  segmentTextActive: { color: colors.white, fontWeight: "700" },
 });

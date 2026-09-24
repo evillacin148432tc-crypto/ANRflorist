@@ -10,8 +10,10 @@ import {
   Platform,
 } from "react-native";
 
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
+import StaffHeader, { EmptyState } from "../lib/StaffHeader";
+import { colors, spacing, radius } from "../lib/theme";
 
 const STATUS_FLOW = ["pending", "preparing", "out_for_delivery", "delivered"];
 
@@ -24,11 +26,19 @@ const STATUS_LABEL = {
 };
 
 const STATUS_COLOR = {
-  pending: "#E67E00",
-  preparing: "#2196F3",
-  out_for_delivery: "#9C27B0",
-  delivered: "green",
-  cancelled: "red",
+  pending: colors.marigold,
+  preparing: colors.plum,
+  out_for_delivery: "#2F7D9A",
+  delivered: colors.fern,
+  cancelled: colors.brick,
+};
+
+const STATUS_TINT = {
+  pending: colors.marigoldTint,
+  preparing: colors.plumTint,
+  out_for_delivery: "#E3F1F6",
+  delivered: colors.fernTint,
+  cancelled: colors.brickTint,
 };
 
 function showMessage(title, message) {
@@ -104,73 +114,87 @@ function OrderCard({ order, onChanged }) {
   const canCancel =
     order.order_status === "pending" || order.order_status === "preparing";
 
+  const statusColor = STATUS_COLOR[order.order_status] || colors.inkSoft;
+  const statusTint = STATUS_TINT[order.order_status] || colors.line;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { borderLeftColor: statusColor }]}>
       <Pressable onPress={toggle}>
         <View style={styles.cardHeader}>
           <Text style={styles.orderId}>Order #{order.id.slice(0, 8)}</Text>
-          <Text
-            style={[styles.status, { color: STATUS_COLOR[order.order_status] }]}
-          >
-            {STATUS_LABEL[order.order_status] || order.order_status}
-          </Text>
+          <View style={[styles.statusPill, { backgroundColor: statusTint }]}>
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {STATUS_LABEL[order.order_status] || order.order_status}
+            </Text>
+          </View>
         </View>
 
         <Text style={styles.date}>
           {new Date(order.created_at).toLocaleString()}
         </Text>
-        <Text style={styles.total}>Total: ₱{order.total_amount}</Text>
+
+        <Text style={styles.total}>₱{order.total_amount}</Text>
+
         <Text style={styles.address}>
-          Deliver to: {order.delivery_address}, {order.delivery_barangay}
+          📍 {order.delivery_address}, {order.delivery_barangay}
         </Text>
         {!!order.delivery_notes && (
-          <Text style={styles.notes}>Notes: {order.delivery_notes}</Text>
+          <Text style={styles.notes}>📝 {order.delivery_notes}</Text>
         )}
+
+        <Text style={styles.expandHint}>
+          {expanded ? "Hide items ▲" : "View items ▼"}
+        </Text>
       </Pressable>
 
       {expanded && (
         <View style={styles.itemsBox}>
           {items === null ? (
-            <Text>Loading items...</Text>
+            <Text style={styles.itemLine}>Loading items...</Text>
           ) : (
             items.map((it, idx) => (
-              <Text key={idx} style={styles.itemLine}>
-                {it.quantity} x {it.product?.name || "Item"} — ₱{it.price} each
-              </Text>
+              <View key={idx} style={styles.itemRow}>
+                <Text style={styles.itemQty}>{it.quantity}×</Text>
+                <Text style={styles.itemName} numberOfLines={1}>
+                  {it.product?.name || "Item"}
+                </Text>
+                <Text style={styles.itemPrice}>₱{it.price}</Text>
+              </View>
             ))
           )}
         </View>
       )}
 
-      <View style={styles.buttonRow}>
-        {nextStatus && (
-          <Pressable
-            style={[styles.advanceButton, busy && { opacity: 0.6 }]}
-            onPress={advance}
-            disabled={busy}
-          >
-            <Text style={styles.buttonText}>
-              Mark as {STATUS_LABEL[nextStatus]}
-            </Text>
-          </Pressable>
-        )}
+      {(nextStatus || canCancel) && (
+        <View style={styles.buttonRow}>
+          {nextStatus && (
+            <Pressable
+              style={[styles.advanceButton, busy && { opacity: 0.6 }]}
+              onPress={advance}
+              disabled={busy}
+            >
+              <Text style={styles.advanceText}>
+                Mark as {STATUS_LABEL[nextStatus]}
+              </Text>
+            </Pressable>
+          )}
 
-        {canCancel && (
-          <Pressable
-            style={[styles.cancelButton, busy && { opacity: 0.6 }]}
-            onPress={cancel}
-            disabled={busy}
-          >
-            <Text style={styles.buttonText}>Cancel</Text>
-          </Pressable>
-        )}
-      </View>
+          {canCancel && (
+            <Pressable
+              style={[styles.cancelButton, busy && { opacity: 0.6 }]}
+              onPress={cancel}
+              disabled={busy}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }
 
 export default function StaffOrders() {
-  const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("active"); // "active" | "all"
@@ -207,11 +231,10 @@ export default function StaffOrders() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.replace("/")}>
-        <Text style={styles.back}>← Back to Inventory</Text>
-      </Pressable>
-
-      <Text style={styles.title}>Orders</Text>
+      <StaffHeader
+        title="Orders"
+        subtitle={`${orders.length} ${filter === "active" ? "active" : "total"}`}
+      />
 
       <View style={styles.filterRow}>
         <Pressable
@@ -250,11 +273,23 @@ export default function StaffOrders() {
       <FlatList
         data={orders}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} />
         }
         renderItem={({ item }) => <OrderCard order={item} onChanged={load} />}
-        ListEmptyComponent={<Text>No orders to show.</Text>}
+        ListEmptyComponent={
+          <EmptyState
+            icon="📦"
+            title="No orders to show"
+            text={
+              filter === "active"
+                ? "New orders will appear here as customers place them."
+                : "There are no orders yet."
+            }
+          />
+        }
       />
     </View>
   );
@@ -263,131 +298,117 @@ export default function StaffOrders() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
-
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 12,
+    backgroundColor: colors.paper,
+    padding: spacing.lg,
   },
 
   filterRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 15,
+    marginBottom: spacing.md,
   },
 
   filterChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#999",
+    borderColor: colors.line,
+    backgroundColor: colors.white,
   },
-
   filterChipActive: {
-    backgroundColor: "#2196F3",
-    borderColor: "#2196F3",
+    backgroundColor: colors.plum,
+    borderColor: colors.plum,
   },
-
-  filterText: {
-    color: "#333",
-  },
-
-  filterTextActive: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  filterText: { color: colors.inkSoft, fontWeight: "600", fontSize: 13 },
+  filterTextActive: { color: colors.white, fontWeight: "700", fontSize: 13 },
 
   card: {
-    padding: 15,
-    marginBottom: 15,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.line,
+    borderLeftWidth: 5,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
 
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.sm,
   },
 
-  orderId: {
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  orderId: { fontWeight: "700", fontSize: 16, color: colors.ink },
 
-  status: {
-    fontWeight: "bold",
+  statusPill: {
+    borderRadius: radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
   },
+  statusText: { fontWeight: "700", fontSize: 12 },
 
-  date: {
-    color: "gray",
-    marginTop: 4,
-    fontSize: 13,
-  },
+  date: { color: colors.inkSoft, marginTop: 4, fontSize: 12 },
 
   total: {
-    marginTop: 6,
-    fontWeight: "600",
+    marginTop: spacing.sm,
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.plum,
   },
 
-  address: {
-    marginTop: 2,
-    color: "#444",
-  },
-
+  address: { marginTop: 6, color: colors.ink, fontSize: 14 },
   notes: {
-    marginTop: 2,
-    color: "#444",
+    marginTop: 4,
+    color: colors.inkSoft,
+    fontSize: 13,
     fontStyle: "italic",
   },
 
-  itemsBox: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#ddd",
+  expandHint: {
+    marginTop: spacing.sm,
+    color: colors.plum,
+    fontSize: 12,
+    fontWeight: "700",
   },
 
-  itemLine: {
-    marginBottom: 4,
+  itemsBox: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 6,
   },
+  itemRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  itemQty: { fontWeight: "700", color: colors.plum, width: 30 },
+  itemName: { flex: 1, color: colors.ink, fontSize: 14 },
+  itemPrice: { color: colors.inkSoft, fontSize: 13 },
+  itemLine: { color: colors.inkSoft },
 
   buttonRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
 
   advanceButton: {
-    flex: 1,
-    backgroundColor: "#4CAF50",
-    padding: 10,
-    borderRadius: 8,
+    flex: 2,
+    backgroundColor: colors.fern,
+    borderRadius: radius.sm,
+    paddingVertical: 12,
     alignItems: "center",
   },
+  advanceText: { color: colors.white, fontWeight: "700" },
 
   cancelButton: {
     flex: 1,
-    backgroundColor: "red",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: colors.brickTint,
+    borderRadius: radius.sm,
+    paddingVertical: 12,
     alignItems: "center",
   },
-
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  cancelText: { color: colors.brick, fontWeight: "700" },
 });

@@ -4,12 +4,20 @@ import {
   Text,
   TextInput,
   Pressable,
+  ScrollView,
+  Image,
+  KeyboardAvoidingView,
   StyleSheet,
   Alert,
   Platform,
 } from "react-native";
 
 import { useAuth } from "../lib/AuthProvider";
+import FlowerLoader from "../lib/FlowerLoader";
+import { colors, spacing, radius, type, shared } from "../lib/theme";
+
+// Save your logo at assets/logo.png
+const LOGO = require("../assets/logo.png");
 
 function showMessage(title, message) {
   if (Platform.OS === "web") {
@@ -26,6 +34,7 @@ export default function Login() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -53,7 +62,6 @@ export default function Login() {
       setBusy(false);
 
       if (error) showMessage("Login Failed", error.message);
-      // on success the route guard moves you to the right screen
       return;
     }
 
@@ -76,135 +84,257 @@ export default function Login() {
       );
       setMode("login");
     }
-    // if confirmation is off, you're logged in automatically
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.box}>
-        <Text style={styles.title}>ANR Florist</Text>
-        <Text style={styles.subtitle}>
-          {mode === "login" ? "Log in to continue" : "Create your account"}
-        </Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.paper }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.box}>
+          {/* Logo */}
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
 
-        {mode === "signup" && (
-          <>
-            <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.heading}>
+            {mode === "login" ? "Welcome back" : "Create your account"}
+          </Text>
+          <Text style={styles.subtitle}>
+            {mode === "login"
+              ? "Log in to order fresh, handmade bouquets."
+              : "Sign up to start ordering in Tagum City."}
+          </Text>
+
+          <View style={styles.card}>
+            {/* Log in / Sign up switch */}
+            <View style={styles.segment}>
+              <Pressable
+                style={[
+                  styles.segmentItem,
+                  mode === "login" && styles.segmentItemActive,
+                ]}
+                onPress={() => setMode("login")}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    mode === "login" && styles.segmentTextActive,
+                  ]}
+                >
+                  Log in
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.segmentItem,
+                  mode === "signup" && styles.segmentItemActive,
+                ]}
+                onPress={() => setMode("signup")}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    mode === "signup" && styles.segmentTextActive,
+                  ]}
+                >
+                  Sign up
+                </Text>
+              </Pressable>
+            </View>
+
+            {mode === "signup" && (
+              <>
+                <Text style={styles.label}>Full name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Juana Dela Cruz"
+                  placeholderTextColor={colors.inkSoft}
+                />
+              </>
+            )}
+
+            <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="you@example.com"
+              placeholderTextColor={colors.inkSoft}
             />
-          </>
-        )}
 
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                onSubmitEditing={submit}
+                placeholder="••••••••"
+                placeholderTextColor={colors.inkSoft}
+              />
+              <Pressable
+                style={styles.eye}
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={8}
+              >
+                <Text style={styles.eyeText}>
+                  {showPassword ? "Hide" : "Show"}
+                </Text>
+              </Pressable>
+            </View>
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          onSubmitEditing={submit}
-        />
+            <Pressable
+              style={[styles.button, busy && { opacity: 0.85 }]}
+              onPress={submit}
+              disabled={busy}
+            >
+              {busy ? (
+                <View style={styles.busyRow}>
+                  <FlowerLoader fullScreen={false} size={20} message="" />
+                  <Text style={styles.buttonText}>Please wait…</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>
+                  {mode === "login" ? "Log in" : "Create account"}
+                </Text>
+              )}
+            </Pressable>
+          </View>
 
-        <Pressable
-          style={[styles.button, busy && { opacity: 0.6 }]}
-          onPress={submit}
-          disabled={busy}
-        >
-          <Text style={styles.buttonText}>
-            {busy ? "Please wait..." : mode === "login" ? "Log In" : "Sign Up"}
+          <Text style={styles.footer}>
+            Handmade flower bouquets · Tagum City
           </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setMode(mode === "login" ? "signup" : "login")}
-          style={styles.switch}
-        >
-          <Text style={styles.switchText}>
-            {mode === "login"
-              ? "No account yet? Sign up"
-              : "Already have an account? Log in"}
-          </Text>
-        </Pressable>
-      </View>
-    </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
+  scroll: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: spacing.lg,
   },
 
   box: {
     width: "100%",
     maxWidth: 400,
+    alignItems: "center",
   },
 
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
+  logo: {
+    width: 190,
+    height: 174,
+    marginBottom: spacing.sm,
+  },
+
+  heading: {
+    ...type.display,
     textAlign: "center",
   },
 
   subtitle: {
     textAlign: "center",
-    color: "gray",
+    color: colors.inkSoft,
+    fontSize: 14,
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: spacing.lg,
+  },
+
+  card: {
+    ...shared.card,
+    width: "100%",
+  },
+
+  segment: {
+    flexDirection: "row",
+    backgroundColor: colors.plumTint,
+    borderRadius: radius.pill,
+    padding: 4,
+  },
+
+  segmentItem: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    alignItems: "center",
+  },
+
+  segmentItemActive: {
+    backgroundColor: colors.white,
+  },
+
+  segmentText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.inkSoft,
+  },
+
+  segmentTextActive: {
+    color: colors.plum,
+    fontWeight: "700",
   },
 
   label: {
-    marginTop: 12,
-    marginBottom: 4,
-    fontWeight: "600",
+    ...type.label,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
 
   input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: "#fafafa",
+    ...shared.input,
+  },
+
+  passwordWrap: {
+    justifyContent: "center",
+  },
+
+  passwordInput: {
+    paddingRight: 64,
+  },
+
+  eye: {
+    position: "absolute",
+    right: 14,
+  },
+
+  eyeText: {
+    color: colors.plum,
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   button: {
-    backgroundColor: "#4CAF50",
-    padding: 14,
-    borderRadius: 10,
+    ...shared.buttonPrimary,
+    marginTop: spacing.xl,
+  },
+
+  busyRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 24,
+    gap: 10,
   },
 
   buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    ...shared.buttonPrimaryText,
   },
 
-  switch: {
-    marginTop: 16,
-    alignItems: "center",
-  },
-
-  switchText: {
-    color: "#2196F3",
-    fontWeight: "600",
+  footer: {
+    marginTop: spacing.lg,
+    color: colors.inkSoft,
+    fontSize: 12,
   },
 });
