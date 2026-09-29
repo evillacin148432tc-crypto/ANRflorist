@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -52,9 +52,11 @@ export default function Index() {
   const [pendingCount, setPendingCount] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [toast, setToast] = useState(null);
 
   // Reloads every time this screen comes into focus (e.g. after editing/adding)
   useFocusEffect(
@@ -62,8 +64,70 @@ export default function Index() {
       loadInventory();
       loadPendingCount();
       loadPendingOrderCount();
+      loadUnreadMessageCount();
     }, []),
   );
+
+  async function loadUnreadMessageCount() {
+    const { count, error } = await supabase
+      .from("chat_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("sender_role", "customer")
+      .is("read_at", null);
+
+    if (!error) setUnreadMessageCount(count ?? 0);
+  }
+
+  // Live updates: a new customer message bumps the badge immediately.
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard-messages")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "chat_messages" },
+        () => {
+          loadUnreadMessageCount();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Live updates: a new order bumps the count immediately, with a brief toast,
+  // so staff notice it even without switching to the Orders screen.
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard-orders")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        () => {
+          loadPendingOrderCount();
+          setToast("🌸 New order received");
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        () => {
+          loadPendingOrderCount();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   async function loadPendingCount() {
     const { count, error } = await supabase
@@ -199,6 +263,12 @@ export default function Index() {
       icon: "🪪",
       label: "Verify customers",
       badge: pendingCount,
+    },
+    {
+      href: "/messages",
+      icon: "💬",
+      label: "Messages",
+      badge: unreadMessageCount,
     },
     { href: "/products", icon: "💐", label: "Bouquets" },
     { href: "/mrp", icon: "📋", label: "Material planning" },
@@ -364,6 +434,12 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
+      {!!toast && (
+        <View style={styles.toast} pointerEvents="none">
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
+
       <FlatList
         data={visibleItems}
         keyExtractor={(item) => String(item.id)}
@@ -464,6 +540,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.paper,
   },
+
+  toast: {
+    position: "absolute",
+    top: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    zIndex: 10,
+    backgroundColor: colors.plum,
+    borderRadius: radius.pill,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  toastText: { color: colors.white, fontWeight: "700", fontSize: 14 },
 
   /* Top bar */
   topBar: {

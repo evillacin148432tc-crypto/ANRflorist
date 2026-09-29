@@ -34,8 +34,13 @@ export default function ProductDetail() {
   useEffect(() => {
     load();
     loadPhotos();
-    loadWishlistState();
   }, [id]);
+
+  // Runs on its own so it re-fires once auth finishes restoring the session
+  // (user goes from null to a real value) even though `id` hasn't changed.
+  useEffect(() => {
+    loadWishlistState();
+  }, [id, user?.id]);
 
   async function load() {
     const { data, error } = await supabase
@@ -91,7 +96,10 @@ export default function ProductDetail() {
   }
 
   async function loadWishlistState() {
-    if (!user) return;
+    if (!user?.id) {
+      setSaved(false); // guest, or auth not ready yet
+      return;
+    }
 
     const { data } = await supabase
       .from("wishlists")
@@ -104,7 +112,10 @@ export default function ProductDetail() {
   }
 
   async function toggleWishlist() {
-    if (!user) return;
+    if (!user?.id) {
+      router.push("/login"); // guests must sign in to save items
+      return;
+    }
     setSaved((prev) => !prev);
 
     if (saved) {
@@ -118,6 +129,13 @@ export default function ProductDetail() {
         .from("wishlists")
         .insert({ customer_id: user.id, product_id: id });
     }
+  }
+
+  // router.back() throws a GO_BACK warning when there is no previous screen
+  // (e.g. after a page reload), so fall back to the catalog.
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/catalog");
   }
 
   function onScrollEnd(e) {
@@ -166,10 +184,7 @@ export default function ProductDetail() {
           )}
 
           <View style={styles.heroTopRow}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.floatingButton}
-            >
+            <Pressable onPress={goBack} style={styles.floatingButton}>
               <Text style={styles.floatingButtonText}>←</Text>
             </Pressable>
 

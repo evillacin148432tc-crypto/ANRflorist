@@ -23,9 +23,6 @@ import { TAGUM_BARANGAYS } from "../lib/barangays";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
 
-// Save your logo at assets/logo.png
-const LOGO = require("../assets/logo.png");
-
 const TAGUM_BOX = { minLat: 7.3, maxLat: 7.6, minLng: 125.72, maxLng: 125.95 };
 
 function showMessage(title, message) {
@@ -68,29 +65,10 @@ function getBase64(asset) {
   return null;
 }
 
-// Picks an emoji for a category by keyword, falling back to a flower
-function categoryEmoji(name = "") {
-  const n = name.toLowerCase();
-  if (n.includes("money") || n.includes("bill")) return "💵";
-  if (n.includes("fresh")) return "🌹";
-  if (n.includes("satin")) return "🎀";
-  if (n.includes("fuzzy")) return "🧸";
-  if (n.includes("card")) return "💌";
-  if (n.includes("bouquet")) return "💐";
-  return "🌸";
-}
-
-const CATEGORY_TINTS = [
-  colors.plumTint,
-  colors.fernTint,
-  colors.marigoldTint,
-  colors.brickTint,
-];
-
 export default function CustomerHome() {
   const router = useRouter();
   const { profile, user, signOut, refreshProfile } = useAuth();
-  const { totalItems, addItem } = useCart();
+  const { totalItems } = useCart();
 
   const status = profile?.verification_status || "unverified";
   const name = profile?.full_name || user?.email;
@@ -256,7 +234,11 @@ export default function CustomerHome() {
       .select("category")
       .eq("is_available", true);
 
-    const set = new Set((data || []).map((p) => p.category).filter(Boolean));
+    const set = new Set(
+      (data || [])
+        .map((p) => (p.category || "").trim())
+        .filter((c) => c.length > 0),
+    );
     setCategories(Array.from(set));
   }
 
@@ -311,13 +293,7 @@ export default function CustomerHome() {
   if (status === "pending") {
     return (
       <View style={styles.center}>
-        <View style={[styles.logoCard, { width: 200, height: 183 }]}>
-          <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
-        </View>
-
-        <Text style={[styles.title, { marginTop: spacing.lg }]}>
-          Thanks, {name}!
-        </Text>
+        <Text style={styles.title}>Thanks, {name}!</Text>
         <Text style={styles.text}>
           Your ID is being reviewed by ANR Florist. You will be able to order
           once you are approved.
@@ -340,13 +316,18 @@ export default function CustomerHome() {
       <View style={styles.dashContainer}>
         <ScrollView
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
-          showsVerticalScrollIndicator={false}
         >
-          {/* Hero: icons + logo + greeting, all in one container */}
-          <View style={styles.hero}>
-            <View style={styles.heroIcons}>
+          <View style={styles.topBar}>
+            <View>
+              <Text style={styles.greeting}>
+                Hi, {name?.split(" ")[0] || "there"} 🌿
+              </Text>
+              <Text style={styles.location}>Delivering in Tagum City</Text>
+            </View>
+
+            <View style={styles.topIcons}>
               <Pressable
-                style={[styles.iconCircle, styles.iconCircleOnHero]}
+                style={styles.iconCircle}
                 onPress={() => router.push("/orders")}
               >
                 <Text style={styles.iconGlyph}>🔔</Text>
@@ -358,7 +339,7 @@ export default function CustomerHome() {
               </Pressable>
 
               <Pressable
-                style={[styles.iconCircle, styles.iconCircleOnHero]}
+                style={styles.iconCircle}
                 onPress={() => router.push("/cart")}
               >
                 <Text style={styles.iconGlyph}>🛒</Text>
@@ -369,54 +350,9 @@ export default function CustomerHome() {
                 )}
               </Pressable>
             </View>
-
-            <View style={styles.heroRow}>
-              <View style={styles.heroLogo}>
-                <Image
-                  source={LOGO}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text style={styles.greeting} numberOfLines={1}>
-                  Hi, {name?.split(" ")[0] || "there"} 🌿
-                </Text>
-                <Text style={styles.location}>📍 Delivering in Tagum City</Text>
-
-                <Pressable
-                  style={styles.heroButton}
-                  onPress={() => router.push("/catalog")}
-                >
-                  <Text style={styles.heroButtonText}>Shop bouquets</Text>
-                </Pressable>
-              </View>
-            </View>
           </View>
 
-          {/* Active orders banner */}
-          {activeOrderCount > 0 && (
-            <Pressable
-              style={styles.orderBanner}
-              onPress={() => router.push("/orders")}
-            >
-              <Text style={styles.orderBannerText}>
-                📦 You have {activeOrderCount} active order
-                {activeOrderCount > 1 ? "s" : ""}
-              </Text>
-              <Text style={styles.orderBannerLink}>Track →</Text>
-            </Pressable>
-          )}
-
-          {/* Categories */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Categories</Text>
-            <Pressable onPress={() => router.push("/catalog")}>
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
-          </View>
-
+          <Text style={styles.sectionTitle}>Categories</Text>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -426,7 +362,7 @@ export default function CustomerHome() {
               gap: spacing.sm,
               marginBottom: spacing.lg,
             }}
-            renderItem={({ item, index }) => (
+            renderItem={({ item }) => (
               <Pressable
                 style={styles.categoryCard}
                 onPress={() =>
@@ -436,32 +372,13 @@ export default function CustomerHome() {
                   })
                 }
               >
-                <View
-                  style={[
-                    styles.categoryIcon,
-                    {
-                      backgroundColor:
-                        CATEGORY_TINTS[index % CATEGORY_TINTS.length],
-                    },
-                  ]}
-                >
-                  <Text style={{ fontSize: 24 }}>{categoryEmoji(item)}</Text>
-                </View>
-                <Text style={styles.categoryLabel} numberOfLines={2}>
-                  {item}
-                </Text>
+                <Text style={{ fontSize: 22 }}>🌸</Text>
+                <Text style={styles.categoryLabel}>{item}</Text>
               </Pressable>
             )}
           />
 
-          {/* Recommended */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommended for you</Text>
-            <Pressable onPress={() => router.push("/catalog")}>
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
-          </View>
-
+          <Text style={styles.sectionTitle}>Recommended for you</Text>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -485,31 +402,13 @@ export default function CustomerHome() {
                   />
                 ) : (
                   <View style={[styles.recThumb, styles.recThumbPlaceholder]}>
-                    <Text style={{ fontSize: 32 }}>💐</Text>
+                    <Text style={{ fontSize: 26 }}>💐</Text>
                   </View>
                 )}
-
                 <Text style={styles.recName} numberOfLines={1}>
                   {item.name}
                 </Text>
-                {!!item.category && (
-                  <Text style={styles.recCategory} numberOfLines={1}>
-                    {item.category}
-                  </Text>
-                )}
-
-                <View style={styles.recFooter}>
-                  <Text style={styles.recPrice}>₱{item.price}</Text>
-                  <Pressable
-                    style={styles.addButton}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      addItem(item, 1);
-                    }}
-                  >
-                    <Text style={styles.addButtonText}>+</Text>
-                  </Pressable>
-                </View>
+                <Text style={styles.recPrice}>₱{item.price}</Text>
               </Pressable>
             )}
             ListEmptyComponent={
@@ -536,19 +435,8 @@ export default function CustomerHome() {
         </Pressable>
       </View>
 
-      <View
-        style={[
-          styles.logoCard,
-          { width: 180, height: 165, alignSelf: "center" },
-        ]}
-      >
-        <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
-      </View>
-
-      <Text style={[styles.heading, { marginTop: spacing.lg }]}>
-        Complete your registration
-      </Text>
-      <Text style={[styles.text, { textAlign: "left" }]}>
+      <Text style={styles.heading}>Complete your registration</Text>
+      <Text style={styles.text}>
         ANR Florist delivers within Tagum City only. Please tell us where you
         live and upload a valid ID so we can verify your account.
       </Text>
@@ -675,67 +563,12 @@ const styles = StyleSheet.create({
 
   dashContainer: { flex: 1, backgroundColor: colors.paper },
 
-  /* Logo */
-  // New logo has a transparent background, so no white box is needed
-  logoCard: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoImage: { width: "100%", height: "100%" },
-
-  /* Verified dashboard header */
-  hero: {
-    backgroundColor: colors.plumTint,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  heroIcons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  heroRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  iconCircleOnHero: {
-    backgroundColor: colors.white,
-    borderColor: "transparent",
-  },
-  heroLogo: {
-    width: 128,
-    height: 117,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  greeting: { fontSize: 20, fontWeight: "700", color: colors.ink },
-  location: { fontSize: 12, color: colors.inkSoft, marginTop: 3 },
-  heroButton: {
-    alignSelf: "flex-start",
-    marginTop: spacing.md,
-    backgroundColor: colors.plum,
-    borderRadius: radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  heroButtonText: { color: colors.white, fontSize: 13, fontWeight: "700" },
-
-  orderBanner: {
+  topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.fernTint,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
+    alignItems: "flex-start",
     marginBottom: spacing.lg,
   },
-  orderBannerText: { color: colors.fern, fontWeight: "700", fontSize: 13 },
-  orderBannerLink: { color: colors.fern, fontWeight: "700", fontSize: 13 },
-
   topBarSimple: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -743,7 +576,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
+  greeting: { fontSize: 20, fontWeight: "700", color: colors.ink },
+  location: { fontSize: 12, color: colors.inkSoft, marginTop: 2 },
   who: { color: colors.inkSoft },
+
+  topIcons: { flexDirection: "row", gap: spacing.sm },
 
   iconCircle: {
     width: 40,
@@ -773,35 +610,21 @@ const styles = StyleSheet.create({
 
   badgeText: { color: colors.white, fontSize: 10, fontWeight: "700" },
 
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.sm,
-  },
   sectionTitle: {
     ...type.title,
     fontSize: 17,
+    marginBottom: spacing.sm,
   },
-  seeAll: { color: colors.plum, fontSize: 13, fontWeight: "700" },
 
   categoryCard: {
-    width: 96,
+    width: 88,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    padding: spacing.sm,
     alignItems: "center",
-    gap: 8,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
   },
 
   categoryLabel: {
@@ -812,7 +635,7 @@ const styles = StyleSheet.create({
   },
 
   recCard: {
-    width: 150,
+    width: 130,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
@@ -822,40 +645,20 @@ const styles = StyleSheet.create({
 
   recThumb: {
     width: "100%",
-    height: 120,
+    height: 90,
     borderRadius: radius.sm,
     backgroundColor: colors.plumTint,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
 
   recThumbPlaceholder: { alignItems: "center", justifyContent: "center" },
 
-  recName: { fontSize: 14, fontWeight: "700", color: colors.ink },
-  recCategory: { fontSize: 11, color: colors.inkSoft, marginTop: 1 },
-  recFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: spacing.sm,
-  },
+  recName: { fontSize: 13, fontWeight: "700", color: colors.ink },
   recPrice: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: colors.plum,
-  },
-  addButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.fern,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: {
-    color: colors.white,
-    fontWeight: "700",
-    fontSize: 15,
-    lineHeight: 16,
+    marginTop: 2,
   },
 
   title: {

@@ -15,6 +15,8 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
 import { useCart } from "../lib/CartProvider";
 import { TAGUM_BARANGAYS } from "../lib/barangays";
+import CustomerTabBar from "../lib/CustomerTabBar";
+import { colors, spacing, radius, type } from "../lib/theme";
 
 function showMessage(title, message) {
   if (Platform.OS === "web") {
@@ -39,12 +41,10 @@ export default function Cart() {
       showMessage("Empty Cart", "Add a bouquet first.");
       return;
     }
-
     if (!barangay) {
       showMessage("Missing Info", "Please choose a delivery barangay.");
       return;
     }
-
     if (!address.trim()) {
       showMessage("Missing Info", "Please enter a delivery address.");
       return;
@@ -65,7 +65,6 @@ export default function Cart() {
     setPlacing(false);
 
     if (error) {
-      console.log("PLACE ORDER ERROR:", error);
       showMessage("Order Failed", error.message);
       return;
     }
@@ -79,259 +78,192 @@ export default function Cart() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
-    >
-      <Pressable onPress={() => router.replace("/catalog")}>
-        <Text style={styles.back}>← Back to Bouquets</Text>
-      </Pressable>
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
+      >
+        <Text style={styles.title}>Your Cart</Text>
 
-      <Text style={styles.title}>Your Cart</Text>
+        {items.length === 0 ? (
+          <Text style={styles.empty}>Your cart is empty.</Text>
+        ) : (
+          items.map(({ product, quantity }) => (
+            <View key={product.id} style={styles.itemRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemName}>{product.name}</Text>
+                <Text style={styles.itemPrice}>₱{product.price} each</Text>
+              </View>
 
-      {items.length === 0 ? (
-        <Text style={styles.empty}>Your cart is empty.</Text>
-      ) : (
-        items.map(({ product, quantity }) => (
-          <View key={product.id} style={styles.itemRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemName}>{product.name}</Text>
-              <Text style={styles.itemPrice}>₱{product.price} each</Text>
-            </View>
-
-            <View style={styles.qtyRow}>
-              <Pressable
-                style={styles.qtyButton}
-                onPress={() => setQuantity(product.id, quantity - 1)}
-              >
-                <Text style={styles.qtyButtonText}>-</Text>
-              </Pressable>
-
-              <Text style={styles.qtyText}>{quantity}</Text>
-
-              <Pressable
-                style={styles.qtyButton}
-                onPress={() => setQuantity(product.id, quantity + 1)}
-              >
-                <Text style={styles.qtyButtonText}>+</Text>
-              </Pressable>
-            </View>
-
-            <Pressable onPress={() => removeItem(product.id)}>
-              <Text style={styles.removeText}>Remove</Text>
-            </Pressable>
-          </View>
-        ))
-      )}
-
-      {items.length > 0 && (
-        <>
-          <Text style={styles.total}>Total: ₱{totalPrice.toFixed(2)}</Text>
-
-          <Text style={styles.sectionTitle}>Delivery Details</Text>
-          <Text style={styles.hint}>
-            Delivery is available within Tagum City only.
-          </Text>
-
-          <Text style={styles.label}>Barangay</Text>
-          <View style={styles.chipRow}>
-            {TAGUM_BARANGAYS.map((b) => (
-              <Pressable
-                key={b}
-                onPress={() => setBarangay(b)}
-                style={[styles.chip, barangay === b && styles.chipActive]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    barangay === b && styles.chipTextActive,
-                  ]}
+              <View style={styles.qtyRow}>
+                <Pressable
+                  style={styles.qtyButton}
+                  onPress={() => setQuantity(product.id, quantity - 1)}
                 >
-                  {b}
-                </Text>
+                  <Text style={styles.qtyButtonText}>−</Text>
+                </Pressable>
+                <Text style={styles.qtyText}>{quantity}</Text>
+                <Pressable
+                  style={styles.qtyButton}
+                  onPress={() => setQuantity(product.id, quantity + 1)}
+                >
+                  <Text style={styles.qtyButtonText}>+</Text>
+                </Pressable>
+              </View>
+
+              <Pressable onPress={() => removeItem(product.id)}>
+                <Text style={styles.removeText}>Remove</Text>
               </Pressable>
-            ))}
-          </View>
+            </View>
+          ))
+        )}
 
-          <Text style={styles.label}>Street / Purok / House No.</Text>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
-          />
+        {items.length > 0 && (
+          <>
+            <Text style={styles.total}>Total: ₱{totalPrice.toFixed(2)}</Text>
 
-          <Text style={styles.label}>Notes for the rider (optional)</Text>
-          <TextInput
-            style={[styles.input, { height: 70 }]}
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            placeholder="e.g. Gate code, landmark..."
-          />
-
-          <Pressable
-            style={[styles.checkoutButton, placing && { opacity: 0.6 }]}
-            onPress={checkout}
-            disabled={placing}
-          >
-            <Text style={styles.checkoutText}>
-              {placing ? "Placing Order..." : "Place Order"}
+            <Text style={styles.sectionTitle}>Delivery details</Text>
+            <Text style={styles.hint}>
+              Delivery is available within Tagum City only.
             </Text>
-          </Pressable>
-        </>
-      )}
-    </ScrollView>
+
+            <Text style={styles.label}>Barangay</Text>
+            <View style={styles.chipRow}>
+              {TAGUM_BARANGAYS.map((b) => (
+                <Pressable
+                  key={b}
+                  onPress={() => setBarangay(b)}
+                  style={[styles.chip, barangay === b && styles.chipActive]}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      barangay === b && styles.chipTextActive,
+                    ]}
+                  >
+                    {b}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Street / Purok / House No.</Text>
+            <TextInput
+              style={styles.input}
+              value={address}
+              onChangeText={setAddress}
+            />
+
+            <Text style={styles.label}>Notes for the rider (optional)</Text>
+            <TextInput
+              style={[styles.input, { height: 70 }]}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              placeholder="e.g. Gate code, landmark..."
+              placeholderTextColor={colors.inkSoft}
+            />
+
+            <Pressable
+              style={[styles.checkoutButton, placing && { opacity: 0.6 }]}
+              onPress={checkout}
+              disabled={placing}
+            >
+              <Text style={styles.checkoutText}>
+                {placing ? "Placing order..." : "Place order"}
+              </Text>
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
+
+      <CustomerTabBar active="home" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
-
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
-
-  empty: {
-    color: "gray",
-  },
+  container: { flex: 1, backgroundColor: colors.paper },
+  title: { ...type.display, marginBottom: spacing.lg },
+  empty: { color: colors.inkSoft },
 
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.line,
   },
 
-  itemName: {
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  itemName: { fontWeight: "700", fontSize: 16, color: colors.ink },
+  itemPrice: { color: colors.inkSoft, marginTop: 2 },
 
-  itemPrice: {
-    color: "gray",
-    marginTop: 2,
-  },
-
-  qtyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
+  qtyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   qtyButton: {
     width: 30,
     height: 30,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#999",
+    borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  qtyButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
+  qtyButtonText: { fontSize: 18, fontWeight: "700", color: colors.plum },
   qtyText: {
     minWidth: 20,
     textAlign: "center",
     fontWeight: "600",
+    color: colors.ink,
   },
 
-  removeText: {
-    color: "red",
-    fontWeight: "600",
-  },
+  removeText: { color: colors.brick, fontWeight: "600" },
 
   total: {
     fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 16,
+    fontWeight: "700",
+    marginTop: spacing.lg,
     textAlign: "right",
+    color: colors.ink,
   },
 
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 24,
-  },
-
-  hint: {
-    color: "gray",
-    marginBottom: 10,
-    fontSize: 13,
-  },
-
+  sectionTitle: { ...type.title, fontSize: 18, marginTop: spacing.xl },
+  hint: { color: colors.inkSoft, marginBottom: spacing.sm, fontSize: 13 },
   label: {
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
     fontWeight: "600",
+    color: colors.ink,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
     padding: 10,
     fontSize: 16,
-    backgroundColor: "#fafafa",
+    backgroundColor: colors.white,
+    color: colors.ink,
   },
 
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#999",
-    backgroundColor: "#fff",
+    borderColor: colors.line,
+    backgroundColor: colors.white,
   },
-
-  chipActive: {
-    backgroundColor: "#4CAF50",
-    borderColor: "#4CAF50",
-  },
-
-  chipText: {
-    color: "#333",
-  },
-
-  chipTextActive: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  chipActive: { backgroundColor: colors.plum, borderColor: colors.plum },
+  chipText: { color: colors.ink },
+  chipTextActive: { color: colors.white, fontWeight: "700" },
 
   checkoutButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: colors.plum,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     alignItems: "center",
-    marginTop: 24,
+    marginTop: spacing.xl,
   },
-
-  checkoutText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  checkoutText: { color: colors.white, fontSize: 16, fontWeight: "700" },
 });

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -204,6 +204,25 @@ export default function StaffOrders() {
       load();
     }, [filter]),
   );
+
+  // Live updates: new orders and status changes from any device refresh this
+  // list immediately, without staff needing to pull-to-refresh.
+  useEffect(() => {
+    const channel = supabase
+      .channel("staff-orders")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          load();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [filter]);
 
   async function load() {
     let query = supabase

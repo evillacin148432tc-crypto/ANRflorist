@@ -34,6 +34,13 @@ export default function Catalog() {
     if (params.category) setActiveCategory(params.category);
   }, [params.category]);
 
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      loadWishlist();
+    }, []),
+  );
+
   async function load() {
     const { data, error } = await supabase
       .from("products")
@@ -44,12 +51,8 @@ export default function Catalog() {
     if (!error) setProducts(data);
   }
 
-  // Recreated whenever the user changes, so it never sees a stale null user.
-  const loadWishlist = useCallback(async () => {
-    if (!user?.id) {
-      setWishlistIds(new Set()); // guest or auth not ready yet
-      return;
-    }
+  async function loadWishlist() {
+    if (!user) return;
 
     const { data, error } = await supabase
       .from("wishlists")
@@ -57,20 +60,10 @@ export default function Catalog() {
       .eq("customer_id", user.id);
 
     if (!error) setWishlistIds(new Set(data.map((w) => w.product_id)));
-  }, [user?.id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      loadWishlist();
-    }, [loadWishlist]),
-  );
+  }
 
   async function toggleWishlist(productId) {
-    if (!user?.id) {
-      router.push("/login"); // guests must sign in to save items
-      return;
-    }
+    if (!user) return;
 
     const isSaved = wishlistIds.has(productId);
 
@@ -95,7 +88,11 @@ export default function Catalog() {
   }
 
   const categories = useMemo(() => {
-    const set = new Set(products.map((p) => p.category).filter(Boolean));
+    const set = new Set(
+      products
+        .map((p) => (p.category || "").trim())
+        .filter((c) => c.length > 0),
+    );
     return ["All", ...Array.from(set)];
   }, [products]);
 
@@ -154,6 +151,7 @@ export default function Catalog() {
             style={[styles.chip, activeCategory === item && styles.chipActive]}
           >
             <Text
+              numberOfLines={1}
               style={[
                 styles.chipText,
                 activeCategory === item && styles.chipTextActive,
@@ -292,6 +290,8 @@ const styles = StyleSheet.create({
   chipList: { marginBottom: spacing.md, flexGrow: 0 },
 
   chip: {
+    flexShrink: 0,
+    alignSelf: "flex-start",
     paddingVertical: 7,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,

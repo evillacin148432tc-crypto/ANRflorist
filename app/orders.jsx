@@ -10,9 +10,11 @@ import {
   Platform,
 } from "react-native";
 
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
+import CustomerTabBar from "../lib/CustomerTabBar";
+import { colors, spacing, radius, type } from "../lib/theme";
 
 const STATUS_LABEL = {
   pending: "Pending",
@@ -23,11 +25,11 @@ const STATUS_LABEL = {
 };
 
 const STATUS_COLOR = {
-  pending: "#E67E00",
-  preparing: "#2196F3",
+  pending: colors.marigold,
+  preparing: colors.plum,
   out_for_delivery: "#9C27B0",
-  delivered: "green",
-  cancelled: "red",
+  delivered: colors.fern,
+  cancelled: colors.brick,
 };
 
 function showMessage(title, message) {
@@ -108,7 +110,7 @@ function OrderCard({ order, onChanged }) {
           <Text
             style={[
               styles.status,
-              { color: STATUS_COLOR[order.order_status] || "#333" },
+              { color: STATUS_COLOR[order.order_status] || colors.ink },
             ]}
           >
             {STATUS_LABEL[order.order_status] || order.order_status}
@@ -118,7 +120,6 @@ function OrderCard({ order, onChanged }) {
         <Text style={styles.date}>
           {new Date(order.created_at).toLocaleString()}
         </Text>
-
         <Text style={styles.total}>Total: ₱{order.total_amount}</Text>
         <Text style={styles.address}>
           Deliver to: {order.delivery_address}, {order.delivery_barangay}
@@ -128,7 +129,7 @@ function OrderCard({ order, onChanged }) {
       {expanded && (
         <View style={styles.itemsBox}>
           {items === null ? (
-            <Text>Loading items...</Text>
+            <Text style={{ color: colors.inkSoft }}>Loading items...</Text>
           ) : (
             items.map((it, idx) => (
               <Text key={idx} style={styles.itemLine}>
@@ -145,7 +146,7 @@ function OrderCard({ order, onChanged }) {
           onPress={cancelOrder}
           disabled={busy}
         >
-          <Text style={styles.cancelText}>Cancel Order</Text>
+          <Text style={styles.cancelText}>Cancel order</Text>
         </Pressable>
       )}
     </View>
@@ -153,18 +154,19 @@ function OrderCard({ order, onChanged }) {
 }
 
 export default function Orders() {
-  const router = useRouter();
   const { user } = useAuth();
 
   const [orders, setOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Recreated when the user changes, so it never runs with a stale null user
-  const load = useCallback(async () => {
-    if (!user?.id) {
-      setOrders([]); // guest, or auth not ready yet
-      return;
-    }
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, []),
+  );
+
+  async function load() {
+    if (!user) return;
 
     const { data, error } = await supabase
       .from("orders")
@@ -173,13 +175,7 @@ export default function Orders() {
       .order("created_at", { ascending: false });
 
     if (!error) setOrders(data);
-  }, [user?.id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  }
 
   async function refresh() {
     setRefreshing(true);
@@ -189,51 +185,41 @@ export default function Orders() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.replace("/catalog")}>
-        <Text style={styles.back}>← Back to Bouquets</Text>
-      </Pressable>
-
       <Text style={styles.title}>My Orders</Text>
 
       <FlatList
         data={orders}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: 100,
+        }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} />
         }
         renderItem={({ item }) => <OrderCard order={item} onChanged={load} />}
-        ListEmptyComponent={<Text>You haven't placed any orders yet.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>You haven't placed any orders yet.</Text>
+        }
       />
+
+      <CustomerTabBar active="home" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
-
-  back: {
-    color: "#2196F3",
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
+  container: { flex: 1, backgroundColor: colors.paper },
+  title: { ...type.display, padding: spacing.lg, paddingBottom: spacing.md },
+  empty: { color: colors.inkSoft },
 
   card: {
-    padding: 15,
-    marginBottom: 15,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: colors.line,
   },
 
   cardHeader: {
@@ -241,53 +227,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  orderId: { fontWeight: "700", fontSize: 16, color: colors.ink },
+  status: { fontWeight: "700" },
 
-  orderId: {
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-
-  status: {
-    fontWeight: "bold",
-  },
-
-  date: {
-    color: "gray",
-    marginTop: 4,
-    fontSize: 13,
-  },
-
-  total: {
-    marginTop: 6,
-    fontWeight: "600",
-  },
-
-  address: {
-    marginTop: 2,
-    color: "#444",
-  },
+  date: { color: colors.inkSoft, marginTop: 4, fontSize: 13 },
+  total: { marginTop: spacing.sm, fontWeight: "600", color: colors.ink },
+  address: { marginTop: 2, color: colors.inkSoft },
 
   itemsBox: {
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: "#ddd",
+    borderTopColor: colors.line,
   },
-
-  itemLine: {
-    marginBottom: 4,
-  },
+  itemLine: { marginBottom: 4, color: colors.ink },
 
   cancelButton: {
-    marginTop: 12,
-    backgroundColor: "red",
+    marginTop: spacing.md,
+    backgroundColor: colors.brick,
     padding: 10,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     alignItems: "center",
   },
-
-  cancelText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  cancelText: { color: colors.white, fontWeight: "700" },
 });
