@@ -212,7 +212,7 @@ export default function AdminUsers() {
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="🔍"
+            icon="search-outline"
             title="No users found"
             text="Try another name or email."
           />

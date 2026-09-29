@@ -18,6 +18,7 @@ import { useAuth } from "../lib/AuthProvider";
 import { TAGUM_BARANGAYS } from "../lib/barangays";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 const AVATAR_BUCKET = "profile-photos";
 
@@ -189,14 +190,16 @@ export default function Profile() {
               <Image source={{ uri: avatarUrl }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={{ fontSize: 28 }}>🌷</Text>
+                <Icon name="person" size={30} color={colors.plum} />
               </View>
             )}
 
             <View style={styles.avatarEditBadge}>
-              <Text style={{ fontSize: 12 }}>
-                {uploadingAvatar ? "…" : "📷"}
-              </Text>
+              {uploadingAvatar ? (
+                <Text style={{ fontSize: 12 }}>…</Text>
+              ) : (
+                <Icon name="camera" size={14} color={colors.plum} />
+              )}
             </View>
           </Pressable>
 

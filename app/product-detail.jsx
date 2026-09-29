@@ -14,6 +14,7 @@ import { supabase } from "../lib/supabase";
 import { useCart } from "../lib/CartProvider";
 import { useAuth } from "../lib/AuthProvider";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 const BUCKET = "bouquet-photos";
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -168,7 +169,7 @@ export default function ProductDetail() {
             </ScrollView>
           ) : (
             <View style={[styles.hero, styles.heroPlaceholder]}>
-              <Text style={{ fontSize: 60 }}>🌸</Text>
+              <Icon name="flower-outline" size={60} color={colors.plum} />
             </View>
           )}
 
@@ -189,7 +190,11 @@ export default function ProductDetail() {
             </Pressable>
 
             <Pressable onPress={toggleWishlist} style={styles.floatingButton}>
-              <Text style={{ fontSize: 17 }}>{saved ? "❤️" : "🤍"}</Text>
+              <Icon
+                name={saved ? "heart" : "heart-outline"}
+                size={20}
+                color={saved ? colors.brick : colors.ink}
+              />
             </Pressable>
           </View>
         </View>
@@ -269,7 +274,11 @@ export default function ProductDetail() {
                           styles.relatedThumbPlaceholder,
                         ]}
                       >
-                        <Text style={{ fontSize: 22 }}>🌸</Text>
+                        <Icon
+                          name="flower-outline"
+                          size={24}
+                          color={colors.plum}
+                        />
                       </View>
                     )}
                     <Text style={styles.relatedName} numberOfLines={1}>

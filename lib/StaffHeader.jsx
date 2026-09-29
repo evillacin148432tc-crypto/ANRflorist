@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { colors, spacing, radius, type } from "./theme";
+import Icon from "./Icon";
 
 /**
  * Shared header for staff/admin sub-screens.
@@ -30,11 +31,11 @@ export default function StaffHeader({ title, subtitle, right }) {
 }
 
 /** Friendly empty state with an icon. */
-export function EmptyState({ icon = "🌸", title, text }) {
+export function EmptyState({ icon = "flower-outline", title, text }) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <Text style={{ fontSize: 30 }}>{icon}</Text>
+        <Icon name={icon} size={30} color={colors.plum} />
       </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       {!!text && <Text style={styles.emptyText}>{text}</Text>}

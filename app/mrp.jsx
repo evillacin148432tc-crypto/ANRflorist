@@ -92,7 +92,7 @@ export default function MRP() {
       <StaffHeader title="Material Planning" subtitle="Know what to buy next" />
 
       {/* Reorder suggestions */}
-      <Text style={styles.sectionTitle}>🛒 Reorder suggestions</Text>
+      <Text style={styles.sectionTitle}>Reorder suggestions</Text>
       <Text style={styles.hint}>
         Items at or below their minimum stock level, with a suggested quantity
         to bring them back up to a healthy level.
@@ -101,7 +101,7 @@ export default function MRP() {
       {lowStock.length === 0 ? (
         <View style={styles.emptyCard}>
           <EmptyState
-            icon="✅"
+            icon="checkmark-circle-outline"
             title="All stocked up"
             text="Nothing needs reordering right now."
           />
@@ -154,7 +154,7 @@ export default function MRP() {
 
       {/* Demand */}
       <Text style={[styles.sectionTitle, { marginTop: spacing.xl }]}>
-        📋 Demand from active orders
+        Demand from active orders
       </Text>
       <Text style={styles.hint}>
         How much of each material is committed to orders that are pending,
@@ -164,7 +164,7 @@ export default function MRP() {
       {demand.length === 0 ? (
         <View style={styles.emptyCard}>
           <EmptyState
-            icon="📭"
+            icon="file-tray-outline"
             title="No active orders"
             text="Materials needed for orders will show up here."
           />

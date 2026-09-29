@@ -15,6 +15,7 @@ import { useCart } from "../lib/CartProvider";
 import { useAuth } from "../lib/AuthProvider";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 export default function Catalog() {
   const router = useRouter();
@@ -113,14 +114,14 @@ export default function Catalog() {
             style={styles.iconCircle}
             onPress={() => router.push("/orders")}
           >
-            <Text style={styles.iconGlyph}>🔔</Text>
+            <Icon name="notifications-outline" size={20} color={colors.plum} />
           </Pressable>
 
           <Pressable
             style={styles.iconCircle}
             onPress={() => router.push("/cart")}
           >
-            <Text style={styles.iconGlyph}>🛒</Text>
+            <Icon name="cart-outline" size={20} color={colors.plum} />
             {totalItems > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{totalItems}</Text>
@@ -144,7 +145,7 @@ export default function Catalog() {
         data={categories}
         keyExtractor={(c) => c}
         style={styles.chipList}
-        contentContainerStyle={{ gap: spacing.sm }}
+        contentContainerStyle={{ gap: spacing.sm, alignItems: "center" }}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => setActiveCategory(item)}
@@ -164,6 +165,7 @@ export default function Catalog() {
       />
 
       <FlatList
+        style={{ flex: 1 }}
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
@@ -190,7 +192,7 @@ export default function Catalog() {
                   />
                 ) : (
                   <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                    <Text style={{ fontSize: 30 }}>🌸</Text>
+                    <Icon name="flower-outline" size={30} color={colors.plum} />
                   </View>
                 )}
 
@@ -198,7 +200,11 @@ export default function Catalog() {
                   style={styles.heartButton}
                   onPress={() => toggleWishlist(item.id)}
                 >
-                  <Text style={{ fontSize: 15 }}>{saved ? "❤️" : "🤍"}</Text>
+                  <Icon
+                    name={saved ? "heart" : "heart-outline"}
+                    size={16}
+                    color={saved ? colors.brick : colors.inkSoft}
+                  />
                 </Pressable>
               </View>
 
@@ -287,7 +293,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  chipList: { marginBottom: spacing.md, flexGrow: 0 },
+  chipList: {
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 40,
+    marginBottom: spacing.md,
+  },
 
   chip: {
     flexShrink: 0,

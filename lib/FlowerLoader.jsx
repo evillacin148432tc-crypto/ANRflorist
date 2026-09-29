@@ -8,6 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { colors, spacing } from "./theme";
+import Icon from "./Icon";
 
 /**
  * Spinning flower loader.
@@ -75,14 +76,9 @@ export default function FlowerLoader({
 
   return (
     <View style={[styles.wrap, fullScreen && styles.fullScreen]}>
-      <Animated.Text
-        style={{
-          fontSize: size,
-          transform: [{ rotate }, { scale }],
-        }}
-      >
-        🌸
-      </Animated.Text>
+      <Animated.View style={{ transform: [{ rotate }, { scale }] }}>
+        <Icon name="flower" size={size} color={colors.plum} />
+      </Animated.View>
 
       {!!message && <Text style={styles.message}>{message}</Text>}
     </View>

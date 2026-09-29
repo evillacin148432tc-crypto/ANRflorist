@@ -17,6 +17,7 @@ import { supabase } from "../lib/supabase";
 import { logStockMovement } from "../lib/stockLog";
 import { useAuth } from "../lib/AuthProvider";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 // Save your logo at assets/logo.png
 const LOGO = require("../assets/logo.png");
@@ -106,7 +107,7 @@ export default function Index() {
         { event: "INSERT", schema: "public", table: "orders" },
         () => {
           loadPendingOrderCount();
-          setToast("🌸 New order received");
+          setToast("New order received");
         },
       )
       .on(
@@ -254,27 +255,33 @@ export default function Index() {
   const actions = [
     {
       href: "/staff-orders",
-      icon: "📦",
+      icon: "cube-outline",
       label: "Orders",
       badge: pendingOrderCount,
     },
     {
       href: "/review",
-      icon: "🪪",
+      icon: "id-card-outline",
       label: "Verify customers",
       badge: pendingCount,
     },
     {
       href: "/messages",
-      icon: "💬",
+      icon: "chatbubbles-outline",
       label: "Messages",
       badge: unreadMessageCount,
     },
-    { href: "/products", icon: "💐", label: "Bouquets" },
-    { href: "/mrp", icon: "📋", label: "Material planning" },
-    { href: "/reports", icon: "📊", label: "Reports" },
+    { href: "/products", icon: "flower-outline", label: "Bouquets" },
+    { href: "/mrp", icon: "clipboard-outline", label: "Material planning" },
+    { href: "/reports", icon: "bar-chart-outline", label: "Reports" },
     ...(role === "admin"
-      ? [{ href: "/admin-users", icon: "👥", label: "Manage users" }]
+      ? [
+          {
+            href: "/admin-users",
+            icon: "people-outline",
+            label: "Manage users",
+          },
+        ]
       : []),
   ];
 
@@ -353,7 +360,7 @@ export default function Index() {
             <Link href="/mrp" asChild>
               <Pressable>
                 <Text style={styles.alertText}>
-                  ⚠️ {lowStockCount} item{lowStockCount > 1 ? "s" : ""} low on
+                  {lowStockCount} item{lowStockCount > 1 ? "s" : ""} low on
                   stock — view reorder suggestions
                 </Text>
               </Pressable>
@@ -364,7 +371,7 @@ export default function Index() {
             <Link href="/staff-orders" asChild>
               <Pressable>
                 <Text style={styles.alertText}>
-                  🛎️ {pendingOrderCount} new order
+                  {pendingOrderCount} new order
                   {pendingOrderCount > 1 ? "s" : ""} waiting to be prepared
                 </Text>
               </Pressable>
@@ -380,7 +387,7 @@ export default function Index() {
           <Link key={a.href} href={a.href} asChild>
             <Pressable style={styles.actionTile}>
               <View style={styles.actionIcon}>
-                <Text style={{ fontSize: 20 }}>{a.icon}</Text>
+                <Icon name={a.icon} size={22} color={colors.plum} />
                 {a.badge > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{a.badge}</Text>

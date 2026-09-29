@@ -148,9 +148,9 @@ function PendingCard({ item, adminId, onDone }) {
       </View>
 
       <View style={styles.infoBox}>
-        <Text style={styles.line}>📱 {item.phone || "-"}</Text>
+        <Text style={styles.line}>Phone: {item.phone || "-"}</Text>
         <Text style={styles.line}>
-          📍 {item.address || "-"}, {item.barangay || "-"},{" "}
+          Address: {item.address || "-"}, {item.barangay || "-"},{" "}
           {item.city || "Tagum City"}
         </Text>
 
@@ -169,7 +169,7 @@ function PendingCard({ item, adminId, onDone }) {
 
       <Pressable style={styles.outlineButton} onPress={toggleId}>
         <Text style={styles.outlineText}>
-          {loadingId ? "Loading..." : idUrl ? "Hide ID" : "🪪  View ID"}
+          {loadingId ? "Loading..." : idUrl ? "Hide ID" : "View ID"}
         </Text>
       </Pressable>
 
@@ -195,7 +195,7 @@ function PendingCard({ item, adminId, onDone }) {
           onPress={() => decide("approved")}
           disabled={busy}
         >
-          <Text style={styles.approveText}>✓ Approve</Text>
+          <Text style={styles.approveText}>Approve</Text>
         </Pressable>
 
         <Pressable
@@ -269,7 +269,7 @@ export default function ReviewCustomers() {
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="🪪"
+            icon="id-card-outline"
             title="All caught up"
             text="No customers waiting for verification."
           />

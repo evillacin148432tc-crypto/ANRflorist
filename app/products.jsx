@@ -17,6 +17,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
 import StaffHeader, { EmptyState } from "../lib/StaffHeader";
 import { colors, spacing, radius } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 function showMessage(title, message) {
   if (Platform.OS === "web") {
@@ -141,7 +142,7 @@ export default function Products() {
                 <Image source={{ uri: item.image_url }} style={styles.thumb} />
               ) : (
                 <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                  <Text style={{ fontSize: 30 }}>💐</Text>
+                  <Icon name="flower-outline" size={30} color={colors.plum} />
                 </View>
               )}
 
@@ -208,7 +209,7 @@ export default function Products() {
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="💐"
+            icon="flower-outline"
             title={products.length === 0 ? "No bouquets yet" : "No matches"}
             text={
               products.length === 0

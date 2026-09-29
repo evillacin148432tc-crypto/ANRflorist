@@ -14,6 +14,7 @@ import { useAuth } from "../lib/AuthProvider";
 import { useCart } from "../lib/CartProvider";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 export default function Wishlist() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function Wishlist() {
                 <Image source={{ uri: p.image_url }} style={styles.thumb} />
               ) : (
                 <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                  <Text style={{ fontSize: 24 }}>💐</Text>
+                  <Icon name="flower-outline" size={26} color={colors.plum} />
                 </View>
               )}
 
@@ -106,14 +107,14 @@ export default function Wishlist() {
                   remove(p.id);
                 }}
               >
-                <Text style={{ fontSize: 16 }}>🗑️</Text>
+                <Icon name="trash-outline" size={18} color={colors.brick} />
               </Pressable>
             </Pressable>
           );
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={{ fontSize: 40 }}>🤍</Text>
+            <Icon name="heart-outline" size={40} color={colors.inkSoft} />
             <Text style={styles.emptyText}>
               Tap the heart on any bouquet to save it here.
             </Text>

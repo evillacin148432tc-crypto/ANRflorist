@@ -16,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 const CATEGORIES = ["Bouquet", "Arrangement", "Single Stem", "Other"];
 const BUCKET = "bouquet-photos";
@@ -90,6 +91,8 @@ export default function ProductEdit() {
   // Photos picked just now, not uploaded yet (only matters for a brand-new
   // product, which has no id — and therefore no storage folder — until saved)
   const [pendingPhotos, setPendingPhotos] = useState([]);
+  // Which uploaded photo is the cover (the one shown in listings)
+  const [coverUrl, setCoverUrl] = useState("");
 
   const [inventory, setInventory] = useState([]);
   const [materialSearch, setMaterialSearch] = useState("");
@@ -135,6 +138,7 @@ export default function ProductEdit() {
     setPrice(String(product.price ?? ""));
     setDescription(product.description ?? "");
     setIsAvailable(product.is_available ?? true);
+    setCoverUrl(product.image_url ?? "");
 
     const { data: materials, error: matError } = await supabase
       .from("product_materials")
@@ -195,11 +199,27 @@ export default function ProductEdit() {
     }
   }
 
+  // The cover is the chosen photo if it still exists, otherwise the first one.
+  const coverPhotoUrl =
+    uploadedPhotos.find((p) => p.url === coverUrl)?.url ??
+    uploadedPhotos[0]?.url ??
+    "";
+
+  async function saveCover(url) {
+    setCoverUrl(url);
+    if (!isEditing) return;
+    const { error } = await supabase
+      .from("products")
+      .update({ image_url: url })
+      .eq("id", id);
+    if (error) showMessage("Cover Not Saved", error.message);
+  }
+
   async function uploadOnePhoto(asset, productId = id) {
     const base64 = getBase64(asset);
     if (!base64) {
       showMessage("Image Error", "Could not read that photo. Try another.");
-      return;
+      return null;
     }
 
     const mime = asset.mimeType || "image/jpeg";
@@ -212,11 +232,43 @@ export default function ProductEdit() {
 
     if (error) {
       showMessage("Upload Failed", error.message);
-      return;
+      return null;
     }
 
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    setUploadedPhotos((prev) => [...prev, { path, url: pub.publicUrl }]);
+    const photo = { path, url: pub.publicUrl };
+    setUploadedPhotos((prev) => [...prev, photo]);
+
+    // First photo of an existing bouquet becomes the cover right away
+    if (isEditing && productId === id && !coverPhotoUrl) {
+      await saveCover(photo.url);
+    }
+
+    return photo;
+  }
+
+  // Swap a photo for a new one (keeps its cover status)
+  async function replacePhoto(photo) {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+    });
+    if (result.canceled) return;
+
+    const wasCover = photo.url === coverPhotoUrl;
+    const newPhoto = await uploadOnePhoto(result.assets[0]);
+    if (!newPhoto) return;
+
+    const { error } = await supabase.storage.from(BUCKET).remove([photo.path]);
+    if (error) {
+      showMessage("Replace Failed", error.message);
+      loadPhotos();
+      return;
+    }
+
+    setUploadedPhotos((prev) => prev.filter((p) => p.path !== photo.path));
+    if (wasCover) await saveCover(newPhoto.url);
   }
 
   async function deletePhoto(photo) {
@@ -226,12 +278,19 @@ export default function ProductEdit() {
     );
     if (!confirmed) return;
 
-    setUploadedPhotos((prev) => prev.filter((p) => p.path !== photo.path));
+    const remaining = uploadedPhotos.filter((p) => p.path !== photo.path);
+    setUploadedPhotos(remaining);
 
     const { error } = await supabase.storage.from(BUCKET).remove([photo.path]);
     if (error) {
       showMessage("Delete Failed", error.message);
       loadPhotos(); // resync in case the optimistic removal was wrong
+      return;
+    }
+
+    // If the cover was deleted, the next photo takes over
+    if (photo.url === coverPhotoUrl) {
+      await saveCover(remaining[0]?.url ?? "");
     }
   }
 
@@ -314,8 +373,8 @@ export default function ProductEdit() {
 
     setSaving(true);
 
-    // The cover photo shown in grids/lists is just the first uploaded photo.
-    const coverUrl = uploadedPhotos[0]?.url ?? "";
+    // The cover photo shown in grids/lists (chosen photo, else the first one).
+    const cover = coverPhotoUrl;
 
     const payload = {
       name: name.trim(),
@@ -323,7 +382,7 @@ export default function ProductEdit() {
       category: category.trim(),
       price: priceNum,
       description: description.trim(),
-      image_url: coverUrl,
+      image_url: cover,
       is_available: isAvailable,
     };
 
@@ -446,8 +505,9 @@ export default function ProductEdit() {
 
       <Text style={styles.label}>Photos</Text>
       <Text style={styles.hint}>
-        The first photo is used as the cover in listings. Customers can swipe
-        through all of them on the bouquet's page.
+        Tap a photo to make it the cover shown in listings. Use the swap icon to
+        replace a photo and the trash icon to delete it. Customers can swipe
+        through all photos on the bouquet's page.
       </Text>
 
       <ScrollView
@@ -457,17 +517,31 @@ export default function ProductEdit() {
       >
         {uploadedPhotos.map((photo, idx) => (
           <View key={photo.path} style={styles.photoThumbWrap}>
-            <Image source={{ uri: photo.url }} style={styles.photoThumb} />
-            {idx === 0 && (
+            <Pressable onPress={() => saveCover(photo.url)}>
+              <Image
+                source={{ uri: photo.url }}
+                style={[
+                  styles.photoThumb,
+                  photo.url === coverPhotoUrl && styles.photoThumbCover,
+                ]}
+              />
+            </Pressable>
+            {photo.url === coverPhotoUrl && (
               <View style={styles.coverBadge}>
                 <Text style={styles.coverBadgeText}>Cover</Text>
               </View>
             )}
             <Pressable
+              style={styles.replaceBadge}
+              onPress={() => replacePhoto(photo)}
+            >
+              <Icon name="swap-horizontal" size={14} color={colors.plum} />
+            </Pressable>
+            <Pressable
               style={styles.deleteBadge}
               onPress={() => deletePhoto(photo)}
             >
-              <Text style={{ fontSize: 12 }}>🗑️</Text>
+              <Icon name="trash-outline" size={14} color={colors.brick} />
             </Pressable>
           </View>
         ))}
@@ -482,7 +556,7 @@ export default function ProductEdit() {
               style={styles.deleteBadge}
               onPress={() => removePendingPhoto(idx)}
             >
-              <Text style={{ fontSize: 12 }}>🗑️</Text>
+              <Icon name="trash-outline" size={14} color={colors.brick} />
             </Pressable>
           </View>
         ))}
@@ -652,6 +726,20 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: radius.sm,
     backgroundColor: colors.plumTint,
+  },
+
+  photoThumbCover: { borderWidth: 2, borderColor: colors.plum },
+
+  replaceBadge: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   coverBadge: {

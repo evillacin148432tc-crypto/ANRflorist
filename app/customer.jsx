@@ -22,6 +22,7 @@ import { useCart } from "../lib/CartProvider";
 import { TAGUM_BARANGAYS } from "../lib/barangays";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 const TAGUM_BOX = { minLat: 7.3, maxLat: 7.6, minLng: 125.72, maxLng: 125.95 };
 
@@ -320,7 +321,7 @@ export default function CustomerHome() {
           <View style={styles.topBar}>
             <View>
               <Text style={styles.greeting}>
-                Hi, {name?.split(" ")[0] || "there"} 🌿
+                Hi, {name?.split(" ")[0] || "there"}
               </Text>
               <Text style={styles.location}>Delivering in Tagum City</Text>
             </View>
@@ -330,7 +331,11 @@ export default function CustomerHome() {
                 style={styles.iconCircle}
                 onPress={() => router.push("/orders")}
               >
-                <Text style={styles.iconGlyph}>🔔</Text>
+                <Icon
+                  name="notifications-outline"
+                  size={20}
+                  color={colors.plum}
+                />
                 {activeOrderCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{activeOrderCount}</Text>
@@ -342,7 +347,7 @@ export default function CustomerHome() {
                 style={styles.iconCircle}
                 onPress={() => router.push("/cart")}
               >
-                <Text style={styles.iconGlyph}>🛒</Text>
+                <Icon name="cart-outline" size={20} color={colors.plum} />
                 {totalItems > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{totalItems}</Text>
@@ -372,7 +377,7 @@ export default function CustomerHome() {
                   })
                 }
               >
-                <Text style={{ fontSize: 22 }}>🌸</Text>
+                <Icon name="flower-outline" size={24} color={colors.plum} />
                 <Text style={styles.categoryLabel}>{item}</Text>
               </Pressable>
             )}
@@ -402,7 +407,7 @@ export default function CustomerHome() {
                   />
                 ) : (
                   <View style={[styles.recThumb, styles.recThumbPlaceholder]}>
-                    <Text style={{ fontSize: 26 }}>💐</Text>
+                    <Icon name="flower-outline" size={28} color={colors.plum} />
                   </View>
                 )}
                 <Text style={styles.recName} numberOfLines={1}>

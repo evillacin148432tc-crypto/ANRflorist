@@ -136,10 +136,10 @@ function OrderCard({ order, onChanged }) {
         <Text style={styles.total}>₱{order.total_amount}</Text>
 
         <Text style={styles.address}>
-          📍 {order.delivery_address}, {order.delivery_barangay}
+          {order.delivery_address}, {order.delivery_barangay}
         </Text>
         {!!order.delivery_notes && (
-          <Text style={styles.notes}>📝 {order.delivery_notes}</Text>
+          <Text style={styles.notes}>Note: {order.delivery_notes}</Text>
         )}
 
         <Text style={styles.expandHint}>
@@ -300,7 +300,7 @@ export default function StaffOrders() {
         renderItem={({ item }) => <OrderCard order={item} onChanged={load} />}
         ListEmptyComponent={
           <EmptyState
-            icon="📦"
+            icon="cube-outline"
             title="No orders to show"
             text={
               filter === "active"

@@ -1,13 +1,19 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { colors, spacing } from "./theme";
+import Icon from "./Icon";
 
 const TABS = [
-  { key: "home", label: "Home", icon: "🏠", route: "/customer" },
-  { key: "explore", label: "Explore", icon: "🔍", route: "/catalog" },
-  { key: "wishlist", label: "Wishlist", icon: "❤️", route: "/wishlist" },
-  { key: "chat", label: "Chat", icon: "💬", route: "/support" },
-  { key: "profile", label: "Profile", icon: "👤", route: "/profile" },
+  { key: "home", label: "Home", icon: "home", route: "/customer" },
+  { key: "explore", label: "Explore", icon: "search", route: "/catalog" },
+  { key: "wishlist", label: "Wishlist", icon: "heart", route: "/wishlist" },
+  {
+    key: "chat",
+    label: "Chat",
+    icon: "chatbubble-ellipses",
+    route: "/support",
+  },
+  { key: "profile", label: "Profile", icon: "person", route: "/profile" },
 ];
 
 export default function CustomerTabBar({ active }) {
@@ -23,7 +29,11 @@ export default function CustomerTabBar({ active }) {
             style={styles.tab}
             onPress={() => router.replace(tab.route)}
           >
-            <Text style={styles.icon}>{tab.icon}</Text>
+            <Icon
+              name={isActive ? tab.icon : `${tab.icon}-outline`}
+              size={22}
+              color={isActive ? colors.plum : colors.inkSoft}
+            />
             <Text style={[styles.label, isActive && styles.labelActive]}>
               {tab.label}
             </Text>

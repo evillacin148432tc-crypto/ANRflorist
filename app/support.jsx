@@ -16,6 +16,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 // NOTE: replace these with ANR Florist's real numbers/links before using
 // this in production.
@@ -31,11 +32,11 @@ const STATUS_LABEL = {
 };
 
 const STATUS_ICON = {
-  pending: "🧾",
-  preparing: "🛠️",
-  out_for_delivery: "🚚",
-  delivered: "✅",
-  cancelled: "✖️",
+  pending: "receipt-outline",
+  preparing: "construct-outline",
+  out_for_delivery: "car-outline",
+  delivered: "checkmark-circle-outline",
+  cancelled: "close-circle-outline",
 };
 
 const STATUS_COLOR = {
@@ -186,7 +187,7 @@ export default function Support() {
           style={styles.contactButton}
           onPress={() => Linking.openURL(`tel:${SHOP_PHONE}`)}
         >
-          <Text style={{ fontSize: 18 }}>📞</Text>
+          <Icon name="call-outline" size={20} color={colors.plum} />
           <Text style={styles.contactLabel}>Call</Text>
         </Pressable>
 
@@ -194,7 +195,7 @@ export default function Support() {
           style={styles.contactButton}
           onPress={() => Linking.openURL(`sms:${SHOP_PHONE}`)}
         >
-          <Text style={{ fontSize: 18 }}>💬</Text>
+          <Icon name="chatbox-ellipses-outline" size={20} color={colors.plum} />
           <Text style={styles.contactLabel}>Text</Text>
         </Pressable>
 
@@ -202,7 +203,7 @@ export default function Support() {
           style={styles.contactButton}
           onPress={() => Linking.openURL(SHOP_MESSENGER_URL)}
         >
-          <Text style={{ fontSize: 18 }}>📘</Text>
+          <Icon name="logo-facebook" size={20} color={colors.plum} />
           <Text style={styles.contactLabel}>Facebook</Text>
         </Pressable>
       </View>
@@ -246,9 +247,11 @@ export default function Support() {
                       { backgroundColor: color + "22" },
                     ]}
                   >
-                    <Text style={{ fontSize: 16 }}>
-                      {STATUS_ICON[item.status] || "📦"}
-                    </Text>
+                    <Icon
+                      name={STATUS_ICON[item.status] || "cube-outline"}
+                      size={18}
+                      color={color}
+                    />
                   </View>
 
                   <View style={styles.systemBubble}>
@@ -309,7 +312,7 @@ export default function Support() {
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={{ fontSize: 40 }}>📦</Text>
+            <Icon name="cube-outline" size={40} color={colors.inkSoft} />
             <Text style={styles.emptyTitle}>No messages yet</Text>
             <Text style={styles.emptyText}>
               Order updates and replies from ANR Florist will show up here.

@@ -12,8 +12,9 @@ import { Link, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import StaffHeader, { EmptyState } from "../lib/StaffHeader";
 import { colors, spacing, radius } from "../lib/theme";
+import Icon from "../lib/Icon";
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+const MEDAL_COLORS = ["#D4A017", "#9CA3AF", "#B0793A"];
 
 export default function Reports() {
   const [refreshing, setRefreshing] = useState(false);
@@ -132,21 +133,21 @@ export default function Reports() {
       <Text style={styles.sectionLabel}>Orders by status</Text>
       <View style={styles.statsRow}>
         <StatBox
-          icon="🛎️"
+          icon="notifications-outline"
           label="Active"
           value={activeOrders}
           color={colors.plum}
           tint={colors.plumTint}
         />
         <StatBox
-          icon="✅"
+          icon="checkmark-circle-outline"
           label="Delivered"
           value={counts.delivered}
           color={colors.fern}
           tint={colors.fernTint}
         />
         <StatBox
-          icon="✖️"
+          icon="close-circle-outline"
           label="Cancelled"
           value={counts.cancelled}
           color={colors.brick}
@@ -155,21 +156,21 @@ export default function Reports() {
       </View>
       <View style={styles.statsRow}>
         <StatBox
-          icon="⏳"
+          icon="time-outline"
           label="Pending"
           value={counts.pending}
           color={colors.marigold}
           tint={colors.marigoldTint}
         />
         <StatBox
-          icon="🛠️"
+          icon="construct-outline"
           label="Preparing"
           value={counts.preparing}
           color={colors.plum}
           tint={colors.plumTint}
         />
         <StatBox
-          icon="🚚"
+          icon="car-outline"
           label="Out for delivery"
           value={counts.out_for_delivery}
           color="#2F7D9A"
@@ -184,7 +185,7 @@ export default function Reports() {
       <View style={styles.listCard}>
         {bestSellers.length === 0 ? (
           <EmptyState
-            icon="💐"
+            icon="flower-outline"
             title="No sales yet"
             text="Best sellers appear here once orders are delivered."
           />
@@ -198,7 +199,11 @@ export default function Reports() {
               ]}
             >
               <Text style={styles.sellerRank}>
-                {MEDALS[idx] || `${idx + 1}.`}
+                {MEDAL_COLORS[idx] ? (
+                  <Icon name="medal" size={18} color={MEDAL_COLORS[idx]} />
+                ) : (
+                  `${idx + 1}.`
+                )}
               </Text>
               <Text style={styles.sellerName} numberOfLines={1}>
                 {b.name}
@@ -223,7 +228,7 @@ export default function Reports() {
         <Link href="/stock-history" asChild>
           <Pressable style={styles.linkRow}>
             <View style={styles.linkIcon}>
-              <Text style={{ fontSize: 16 }}>📦</Text>
+              <Icon name="cube-outline" size={18} color={colors.plum} />
             </View>
             <Text style={styles.linkText}>Stock movement log</Text>
             <Text style={styles.chevron}>›</Text>
@@ -235,7 +240,7 @@ export default function Reports() {
         <Link href="/verification-history" asChild>
           <Pressable style={styles.linkRow}>
             <View style={styles.linkIcon}>
-              <Text style={{ fontSize: 16 }}>🪪</Text>
+              <Icon name="id-card-outline" size={18} color={colors.plum} />
             </View>
             <Text style={styles.linkText}>Customer verification log</Text>
             <Text style={styles.chevron}>›</Text>
@@ -249,7 +254,7 @@ export default function Reports() {
 function StatBox({ icon, label, value, color, tint }) {
   return (
     <View style={[styles.statBox, { backgroundColor: tint }]}>
-      <Text style={{ fontSize: 16 }}>{icon}</Text>
+      <Icon name={icon} size={18} color={color} />
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>

@@ -174,7 +174,7 @@ export default function Messages() {
         }}
         ListEmptyComponent={
           <EmptyState
-            icon="💬"
+            icon="chatbubbles-outline"
             title="No messages yet"
             text="Customer conversations will show up here."
           />
