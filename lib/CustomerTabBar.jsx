@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { colors, spacing } from "./theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, spacing, radius } from "./theme";
 import Icon from "./Icon";
 
 const TABS = [
@@ -18,9 +19,15 @@ const TABS = [
 
 export default function CustomerTabBar({ active }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.bar}>
+    <View
+      style={[
+        styles.bar,
+        { paddingBottom: Math.max(insets.bottom, spacing.sm) },
+      ]}
+    >
       {TABS.map((tab) => {
         const isActive = tab.key === active;
         return (
@@ -29,12 +36,17 @@ export default function CustomerTabBar({ active }) {
             style={styles.tab}
             onPress={() => router.replace(tab.route)}
           >
-            <Icon
-              name={isActive ? tab.icon : `${tab.icon}-outline`}
-              size={22}
-              color={isActive ? colors.plum : colors.inkSoft}
-            />
-            <Text style={[styles.label, isActive && styles.labelActive]}>
+            <View style={[styles.pill, isActive && styles.pillActive]}>
+              <Icon
+                name={isActive ? tab.icon : `${tab.icon}-outline`}
+                size={21}
+                color={isActive ? colors.plum : colors.inkSoft}
+              />
+            </View>
+            <Text
+              numberOfLines={1}
+              style={[styles.label, isActive && styles.labelActive]}
+            >
               {tab.label}
             </Text>
           </Pressable>
@@ -44,8 +56,7 @@ export default function CustomerTabBar({ active }) {
   );
 }
 
-// Screens using this bar should add paddingBottom (~80) to their scroll
-// content so the last item isn't hidden behind it.
+// Screens using this bar should add paddingBottom (~100) to their scroll content.
 const styles = StyleSheet.create({
   bar: {
     position: "absolute",
@@ -56,27 +67,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.line,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingTop: 6,
+    shadowColor: "#4E2D75",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -3 },
+    elevation: 10,
   },
-
-  tab: {
-    flex: 1,
+  tab: { flex: 1, alignItems: "center", gap: 2, minWidth: 0 },
+  pill: {
+    width: 52,
+    height: 30,
+    borderRadius: radius.pill,
     alignItems: "center",
-    gap: 2,
+    justifyContent: "center",
   },
-
-  icon: {
-    fontSize: 18,
-  },
-
-  label: {
-    fontSize: 11,
-    color: colors.inkSoft,
-    fontWeight: "600",
-  },
-
-  labelActive: {
-    color: colors.plum,
-  },
+  pillActive: { backgroundColor: colors.plumTint },
+  label: { fontSize: 11, color: colors.inkSoft, fontWeight: "600" },
+  labelActive: { color: colors.plum, fontWeight: "700" },
 });

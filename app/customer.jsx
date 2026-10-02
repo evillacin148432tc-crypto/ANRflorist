@@ -10,6 +10,7 @@ import {
   FlatList,
   Alert,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
@@ -21,7 +22,16 @@ import { useAuth } from "../lib/AuthProvider";
 import { useCart } from "../lib/CartProvider";
 import { TAGUM_BARANGAYS } from "../lib/barangays";
 import CustomerTabBar from "../lib/CustomerTabBar";
-import { colors, spacing, radius, type } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  colors,
+  spacing,
+  radius,
+  type,
+  shared,
+  shadow,
+  layout,
+} from "../lib/theme";
 import Icon from "../lib/Icon";
 
 const TAGUM_BOX = { minLat: 7.3, maxLat: 7.6, minLng: 125.72, maxLng: 125.95 };
@@ -71,6 +81,10 @@ export default function CustomerHome() {
   const { profile, user, signOut, refreshProfile } = useAuth();
   const { totalItems } = useCart();
 
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const gridW = Math.min(width, layout.maxWidth);
+  const cardW = (gridW - spacing.lg * 2 - spacing.md) / 2;
   const status = profile?.verification_status || "unverified";
   const name = profile?.full_name || user?.email;
 
@@ -293,17 +307,26 @@ export default function CustomerHome() {
   // ---------------- Render: Pending ----------------
   if (status === "pending") {
     return (
-      <View style={styles.center}>
+      <View
+        style={[
+          styles.center,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <View style={styles.statusIcon}>
+          <Icon name="time-outline" size={40} color={colors.plum} />
+        </View>
         <Text style={styles.title}>Thanks, {name}!</Text>
         <Text style={styles.text}>
           Your ID is being reviewed by ANR Florist. You will be able to order
           once you are approved.
         </Text>
-
-        <Pressable style={styles.primaryButton} onPress={refreshProfile}>
+        <Pressable
+          style={[styles.primaryButton, { alignSelf: "stretch" }]}
+          onPress={refreshProfile}
+        >
           <Text style={styles.primaryButtonText}>Check status</Text>
         </Pressable>
-
         <Pressable style={styles.logout} onPress={signOut}>
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
@@ -311,65 +334,98 @@ export default function CustomerHome() {
     );
   }
 
-  // ---------------- Render: Verified — the real dashboard ----------------
+  // ---------------- Render: Verified dashboard ----------------
   if (status === "verified") {
+    const firstName = name?.split(" ")[0] || "there";
+    const BellCart = ({ icon, count, to }) => (
+      <Pressable style={styles.iconCircle} onPress={() => router.push(to)}>
+        <Icon name={icon} size={20} color={colors.plum} />
+        {count > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{count}</Text>
+          </View>
+        )}
+      </Pressable>
+    );
+
     return (
       <View style={styles.dashContainer}>
         <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingTop: insets.top + spacing.md,
+            paddingBottom: 110 + insets.bottom,
+            paddingHorizontal: spacing.lg,
+            width: "100%",
+            maxWidth: layout.maxWidth,
+            alignSelf: "center",
+          }}
         >
           <View style={styles.topBar}>
-            <View>
-              <Text style={styles.greeting}>
-                Hi, {name?.split(" ")[0] || "there"}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.greeting} numberOfLines={1}>
+                Hi, {firstName} 👋
               </Text>
-              <Text style={styles.location}>Delivering in Tagum City</Text>
+              <View style={styles.locRow}>
+                <Icon name="location" size={12} color={colors.plum} />
+                <Text style={styles.location}>Delivering in Tagum City</Text>
+              </View>
             </View>
-
             <View style={styles.topIcons}>
-              <Pressable
-                style={styles.iconCircle}
-                onPress={() => router.push("/orders")}
-              >
-                <Icon
-                  name="notifications-outline"
-                  size={20}
-                  color={colors.plum}
-                />
-                {activeOrderCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{activeOrderCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-
-              <Pressable
-                style={styles.iconCircle}
-                onPress={() => router.push("/cart")}
-              >
-                <Icon name="cart-outline" size={20} color={colors.plum} />
-                {totalItems > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{totalItems}</Text>
-                  </View>
-                )}
-              </Pressable>
+              <BellCart
+                icon="notifications-outline"
+                count={activeOrderCount}
+                to="/orders"
+              />
+              <BellCart icon="cart-outline" count={totalItems} to="/cart" />
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <Pressable
+            style={styles.search}
+            onPress={() => router.push("/catalog")}
+          >
+            <Icon name="search" size={18} color={colors.inkSoft} />
+            <Text style={styles.searchText}>Search bouquets, flowers…</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.hero}
+            onPress={() => router.push("/catalog")}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroKicker}>HANDMADE FRESH</Text>
+              <Text style={styles.heroTitle}>
+                Flowers for every{"\n"}special moment
+              </Text>
+              <View style={styles.heroBtn}>
+                <Text style={styles.heroBtnText}>Shop now</Text>
+                <Icon name="arrow-forward" size={14} color={colors.plum} />
+              </View>
+            </View>
+            <Icon name="flower" size={78} color="rgba(255,255,255,0.28)" />
+          </Pressable>
+
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Categories</Text>
+            <Pressable onPress={() => router.push("/catalog")}>
+              <Text style={styles.seeAll}>See all</Text>
+            </Pressable>
+          </View>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
             data={categories}
             keyExtractor={(c) => c}
+            style={{ marginHorizontal: -spacing.lg }}
             contentContainerStyle={{
               gap: spacing.sm,
-              marginBottom: spacing.lg,
+              paddingHorizontal: spacing.lg,
+              paddingBottom: 4,
             }}
             renderItem={({ item }) => (
               <Pressable
-                style={styles.categoryCard}
+                style={styles.categoryChip}
                 onPress={() =>
                   router.push({
                     pathname: "/catalog",
@@ -377,49 +433,62 @@ export default function CustomerHome() {
                   })
                 }
               >
-                <Icon name="flower-outline" size={24} color={colors.plum} />
-                <Text style={styles.categoryLabel}>{item}</Text>
+                <View style={styles.categoryDot}>
+                  <Icon name="flower-outline" size={16} color={colors.plum} />
+                </View>
+                <Text style={styles.categoryLabel} numberOfLines={1}>
+                  {item}
+                </Text>
               </Pressable>
             )}
           />
 
-          <Text style={styles.sectionTitle}>Recommended for you</Text>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={recommended}
-            keyExtractor={(p) => String(p.id)}
-            contentContainerStyle={{ gap: spacing.md }}
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.recCard}
-                onPress={() =>
-                  router.push({
-                    pathname: "/product-detail",
-                    params: { id: String(item.id) },
-                  })
-                }
-              >
-                {item.image_url ? (
-                  <Image
-                    source={{ uri: item.image_url }}
-                    style={styles.recThumb}
-                  />
-                ) : (
-                  <View style={[styles.recThumb, styles.recThumbPlaceholder]}>
-                    <Icon name="flower-outline" size={28} color={colors.plum} />
-                  </View>
-                )}
-                <Text style={styles.recName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.recPrice}>₱{item.price}</Text>
-              </Pressable>
-            )}
-            ListEmptyComponent={
-              <Text style={{ color: colors.inkSoft }}>No bouquets yet.</Text>
-            }
-          />
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Recommended for you</Text>
+          </View>
+          {recommended.length === 0 ? (
+            <Text style={{ color: colors.inkSoft }}>No bouquets yet.</Text>
+          ) : (
+            <View style={styles.grid}>
+              {recommended.map((item) => (
+                <Pressable
+                  key={String(item.id)}
+                  style={[styles.recCard, { width: cardW }]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/product-detail",
+                      params: { id: String(item.id) },
+                    })
+                  }
+                >
+                  {item.image_url ? (
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={[styles.recThumb, { height: cardW * 0.9 }]}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.recThumb,
+                        styles.recThumbPlaceholder,
+                        { height: cardW * 0.9 },
+                      ]}
+                    >
+                      <Icon
+                        name="flower-outline"
+                        size={32}
+                        color={colors.plum}
+                      />
+                    </View>
+                  )}
+                  <Text style={styles.recName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.recPrice}>₱{item.price}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </ScrollView>
 
         <CustomerTabBar active="home" />
@@ -427,23 +496,33 @@ export default function CustomerHome() {
     );
   }
 
-  // ---------------- Render: Unverified or rejected — registration form ----------------
+  // ---------------- Render: Registration form ----------------
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      style={{ flex: 1, backgroundColor: colors.paper }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        paddingTop: insets.top + spacing.md,
+        paddingBottom: insets.bottom + 40,
+        paddingHorizontal: spacing.lg,
+        width: "100%",
+        maxWidth: layout.maxWidth,
+        alignSelf: "center",
+      }}
     >
       <View style={styles.topBarSimple}>
-        <Text style={styles.who}>{name}</Text>
-        <Pressable style={styles.logout} onPress={signOut}>
+        <Text style={styles.who} numberOfLines={1}>
+          {name}
+        </Text>
+        <Pressable style={[styles.logout, { marginTop: 0 }]} onPress={signOut}>
           <Text style={styles.logoutText}>Log out</Text>
         </Pressable>
       </View>
 
       <Text style={styles.heading}>Complete your registration</Text>
-      <Text style={styles.text}>
-        ANR Florist delivers within Tagum City only. Please tell us where you
-        live and upload a valid ID so we can verify your account.
+      <Text style={styles.sub}>
+        ANR Florist delivers within Tagum City only. Tell us where you live and
+        upload a valid ID so we can verify your account.
       </Text>
 
       {status === "rejected" && (
@@ -451,97 +530,106 @@ export default function CustomerHome() {
           <Text style={styles.rejectTitle}>
             Your last submission was rejected
           </Text>
-          <Text>{profile?.verification_remarks || "No reason was given."}</Text>
-          <Text style={{ marginTop: 6 }}>
+          <Text style={{ color: colors.ink }}>
+            {profile?.verification_remarks || "No reason was given."}
+          </Text>
+          <Text style={{ marginTop: 6, color: colors.ink }}>
             Please fix the problem and submit again.
           </Text>
         </View>
       )}
 
-      <Text style={styles.label}>Mobile number</Text>
-      <TextInput
-        style={styles.input}
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-        placeholder="09123456789"
-        placeholderTextColor={colors.inkSoft}
-      />
+      <View style={styles.formCard}>
+        <Text style={styles.label}>Mobile number</Text>
+        <TextInput
+          style={styles.input}
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          placeholder="09123456789"
+          placeholderTextColor={colors.inkSoft}
+        />
 
-      <Text style={styles.label}>City</Text>
-      <TextInput
-        style={[styles.input, styles.locked]}
-        value="Tagum City"
-        editable={false}
-      />
+        <Text style={styles.label}>City</Text>
+        <TextInput
+          style={[styles.input, styles.locked]}
+          value="Tagum City"
+          editable={false}
+        />
 
-      <Text style={styles.label}>Barangay</Text>
-      <View style={styles.chipRow}>
-        {TAGUM_BARANGAYS.map((b) => (
-          <Pressable
-            key={b}
-            onPress={() => setBarangay(b)}
-            style={[styles.chip, barangay === b && styles.chipActive]}
-          >
-            <Text
-              style={[styles.chipText, barangay === b && styles.chipTextActive]}
+        <Text style={styles.label}>Barangay</Text>
+        <View style={styles.chipRow}>
+          {TAGUM_BARANGAYS.map((b) => (
+            <Pressable
+              key={b}
+              onPress={() => setBarangay(b)}
+              style={[styles.chip, barangay === b && styles.chipActive]}
             >
-              {b}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[
+                  styles.chipText,
+                  barangay === b && styles.chipTextActive,
+                ]}
+              >
+                {b}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Street / Purok / House No.</Text>
+        <TextInput
+          style={styles.input}
+          value={address}
+          onChangeText={setAddress}
+          placeholder="e.g. Purok 3, Rizal St."
+          placeholderTextColor={colors.inkSoft}
+        />
       </View>
 
-      <Text style={styles.label}>Street / Purok / House No.</Text>
-      <TextInput
-        style={styles.input}
-        value={address}
-        onChangeText={setAddress}
-        placeholder="e.g. Purok 3, Rizal St."
-        placeholderTextColor={colors.inkSoft}
-      />
-
-      <Text style={styles.label}>Map pin (optional)</Text>
-      <Text style={styles.hint}>
-        Helps our rider find your exact spot. Only works if you are at your
-        delivery address right now.
-      </Text>
-
-      <Pressable
-        style={styles.outlineButton}
-        onPress={useMyLocation}
-        disabled={locating}
-      >
-        <Text style={styles.outlineText}>
-          {locating ? "Getting location..." : "Use my current location"}
+      <View style={styles.formCard}>
+        <Text style={styles.cardTitle}>Map pin (optional)</Text>
+        <Text style={styles.hint}>
+          Helps our rider find your exact spot. Only works if you are at your
+          delivery address right now.
         </Text>
-      </Pressable>
+        <Pressable
+          style={styles.outlineButton}
+          onPress={useMyLocation}
+          disabled={locating}
+        >
+          <Icon name="locate-outline" size={18} color={colors.plum} />
+          <Text style={styles.outlineText}>
+            {locating ? "Getting location..." : "Use my current location"}
+          </Text>
+        </Pressable>
+        {pin && (
+          <Text style={styles.pinText}>
+            Pin saved: {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+          </Text>
+        )}
+      </View>
 
-      {pin && (
-        <Text style={styles.pinText}>
-          Pin saved: {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+      <View style={styles.formCard}>
+        <Text style={styles.cardTitle}>Valid ID photo</Text>
+        <Text style={styles.hint}>
+          A clear photo of a government-issued or school ID. It is stored
+          privately and only ANR Florist staff can view it.
         </Text>
-      )}
-
-      <Text style={styles.label}>Valid ID photo</Text>
-      <Text style={styles.hint}>
-        A clear photo of a government-issued or school ID. It is stored
-        privately and only ANR Florist staff can view it.
-      </Text>
-
-      <Pressable style={styles.outlineButton} onPress={pickImage}>
-        <Text style={styles.outlineText}>
-          {idImage ? "Choose a different photo" : "Choose ID photo"}
-        </Text>
-      </Pressable>
-
-      {idImage && (
-        <Image
-          source={{ uri: idImage.uri }}
-          style={styles.preview}
-          resizeMode="contain"
-        />
-      )}
+        <Pressable style={styles.outlineButton} onPress={pickImage}>
+          <Icon name="image-outline" size={18} color={colors.plum} />
+          <Text style={styles.outlineText}>
+            {idImage ? "Choose a different photo" : "Choose ID photo"}
+          </Text>
+        </Pressable>
+        {idImage && (
+          <Image
+            source={{ uri: idImage.uri }}
+            style={styles.preview}
+            resizeMode="contain"
+          />
+        )}
+      </View>
 
       <Pressable
         style={[styles.primaryButton, saving && { opacity: 0.6 }]}
@@ -557,203 +645,253 @@ export default function CustomerHome() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper, padding: spacing.lg },
   center: {
     flex: 1,
     backgroundColor: colors.paper,
     alignItems: "center",
     justifyContent: "center",
-    padding: spacing.lg,
+    padding: spacing.xl,
   },
-
+  statusIcon: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.lg,
+  },
   dashContainer: { flex: 1, backgroundColor: colors.paper },
 
   topBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
+    gap: spacing.md,
     marginBottom: spacing.lg,
   },
   topBarSimple: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.md,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
-
-  greeting: { fontSize: 20, fontWeight: "700", color: colors.ink },
-  location: { fontSize: 12, color: colors.inkSoft, marginTop: 2 },
-  who: { color: colors.inkSoft },
-
+  greeting: { fontSize: 22, fontWeight: "800", color: colors.ink },
+  locRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+  location: { fontSize: 12, color: colors.inkSoft },
+  who: { color: colors.inkSoft, flex: 1 },
   topIcons: { flexDirection: "row", gap: spacing.sm },
-
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.card,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
+    ...shadow,
   },
-
-  iconGlyph: { fontSize: 18 },
-
   badge: {
     position: "absolute",
-    top: -4,
-    right: -4,
+    top: -3,
+    right: -3,
     backgroundColor: colors.brick,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
   },
-
   badgeText: { color: colors.white, fontSize: 10, fontWeight: "700" },
 
-  sectionTitle: {
-    ...type.title,
-    fontSize: 17,
-    marginBottom: spacing.sm,
-  },
-
-  categoryCard: {
-    width: 88,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+  search: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    marginBottom: spacing.lg,
   },
+  searchText: { color: colors.inkSoft, fontSize: 14 },
 
-  categoryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.ink,
-    textAlign: "center",
+  hero: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.plum,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    overflow: "hidden",
+    ...shadow,
   },
+  heroKicker: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+  },
+  heroTitle: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: 4,
+    lineHeight: 26,
+  },
+  heroBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: colors.white,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginTop: spacing.md,
+  },
+  heroBtnText: { color: colors.plum, fontSize: 13, fontWeight: "700" },
 
+  sectionHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.md,
+  },
+  sectionTitle: { ...type.title },
+  seeAll: { color: colors.plum, fontWeight: "700", fontSize: 13 },
+
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingVertical: 6,
+    paddingLeft: 6,
+    paddingRight: 14,
+    marginBottom: spacing.lg,
+  },
+  categoryDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryLabel: { fontSize: 13, fontWeight: "600", color: colors.ink },
+
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   recCard: {
-    width: 130,
-    backgroundColor: colors.card,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
     borderRadius: radius.md,
     padding: spacing.sm,
+    ...shadow,
   },
-
   recThumb: {
     width: "100%",
-    height: 90,
     borderRadius: radius.sm,
     backgroundColor: colors.plumTint,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
-
   recThumbPlaceholder: { alignItems: "center", justifyContent: "center" },
-
-  recName: { fontSize: 13, fontWeight: "700", color: colors.ink },
-  recPrice: {
-    fontSize: 13,
+  recName: {
+    fontSize: 14,
     fontWeight: "700",
+    color: colors.ink,
+    paddingHorizontal: 2,
+  },
+  recPrice: {
+    fontSize: 14,
+    fontWeight: "800",
     color: colors.plum,
     marginTop: 2,
+    paddingHorizontal: 2,
+    paddingBottom: 2,
   },
 
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
+  title: { ...type.display, fontSize: 24, textAlign: "center" },
+  heading: { ...type.display, marginBottom: 6 },
+  text: {
+    marginTop: 8,
+    marginBottom: spacing.lg,
+    color: colors.inkSoft,
     textAlign: "center",
-    color: colors.ink,
+    lineHeight: 21,
   },
-  heading: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 6,
-    color: colors.ink,
-  },
-  text: { marginTop: 8, color: colors.inkSoft, textAlign: "center" },
+  sub: { color: colors.inkSoft, lineHeight: 21, marginBottom: spacing.lg },
 
-  label: {
-    marginTop: 16,
-    marginBottom: 4,
-    fontWeight: "600",
-    color: colors.ink,
+  formCard: { ...shared.card, marginBottom: spacing.md },
+  cardTitle: { ...type.title, fontSize: 16, marginBottom: 4 },
+  label: { ...type.label, marginTop: spacing.md, marginBottom: 6 },
+  hint: {
+    color: colors.inkSoft,
+    marginBottom: spacing.md,
+    fontSize: 13,
+    lineHeight: 19,
   },
-  hint: { color: colors.inkSoft, marginBottom: 8, fontSize: 13 },
-
-  input: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.sm,
-    padding: 10,
-    fontSize: 16,
-    backgroundColor: colors.white,
-    color: colors.ink,
-  },
-  locked: { backgroundColor: colors.card, color: colors.inkSoft },
+  input: { ...shared.input },
+  locked: { backgroundColor: colors.plumTint, color: colors.inkSoft },
 
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paper,
+  },
+  chipActive: { backgroundColor: colors.plum, borderColor: colors.plum },
+  chipText: { color: colors.ink, fontSize: 13 },
+  chipTextActive: { color: colors.white, fontWeight: "700" },
+
+  outlineButton: {
+    ...shared.buttonOutline,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+  },
+  outlineText: { color: colors.plum, fontWeight: "700" },
+  pinText: { marginTop: 8, color: colors.fern, fontWeight: "600" },
+  preview: {
+    width: "100%",
+    height: 200,
+    marginTop: 12,
+    borderRadius: radius.sm,
+    backgroundColor: colors.plumTint,
+  },
+
+  primaryButton: {
+    ...shared.buttonPrimary,
+    marginTop: spacing.md,
+    paddingHorizontal: 24,
+  },
+  primaryButtonText: { ...shared.buttonPrimaryText },
+
+  logout: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
     backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.plum, borderColor: colors.plum },
-  chipText: { color: colors.ink },
-  chipTextActive: { color: colors.white, fontWeight: "700" },
-
-  outlineButton: {
-    borderWidth: 1,
-    borderColor: colors.plum,
-    borderRadius: radius.sm,
-    padding: 12,
-    alignItems: "center",
-  },
-  outlineText: { color: colors.plum, fontWeight: "600" },
-
-  pinText: { marginTop: 8, color: colors.fern },
-
-  preview: {
-    width: "100%",
-    height: 220,
-    marginTop: 12,
-    borderRadius: radius.sm,
-    backgroundColor: colors.card,
-  },
-
-  primaryButton: {
-    backgroundColor: colors.plum,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  primaryButtonText: { color: colors.white, fontSize: 16, fontWeight: "700" },
-
-  logout: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.line,
     marginTop: 12,
   },
   logoutText: { fontWeight: "600", color: colors.inkSoft },
 
   rejectBox: {
-    marginTop: 16,
-    padding: 12,
+    marginBottom: spacing.md,
+    padding: 14,
     borderRadius: radius.sm,
     backgroundColor: colors.brickTint,
     borderWidth: 1,

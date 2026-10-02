@@ -10,11 +10,14 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 
 import { useAuth } from "../lib/AuthProvider";
 import FlowerLoader from "../lib/FlowerLoader";
-import { colors, spacing, radius, type, shared } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, spacing, radius, type, shared, layout } from "../lib/theme";
+import Icon from "../lib/Icon";
 
 // Save your logo at assets/logo.png
 const LOGO = require("../assets/logo.png");
@@ -36,6 +39,9 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const logoH = Math.min(150, Math.max(90, height * 0.17));
 
   async function submit() {
     if (!email.trim() || !password) {
@@ -86,95 +92,109 @@ export default function Login() {
     }
   }
 
+  const isLogin = mode === "login";
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.paper }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingTop: insets.top + spacing.lg,
+            paddingBottom: insets.bottom + spacing.lg,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.box}>
-          {/* Logo */}
-          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+          <Image
+            source={LOGO}
+            style={{ width: logoH * 1.1, height: logoH }}
+            resizeMode="contain"
+          />
 
           <Text style={styles.heading}>
-            {mode === "login" ? "Welcome back" : "Create your account"}
+            {isLogin ? "Welcome back" : "Create your account"}
           </Text>
           <Text style={styles.subtitle}>
-            {mode === "login"
+            {isLogin
               ? "Log in to order fresh, handmade bouquets."
               : "Sign up to start ordering in Tagum City."}
           </Text>
 
           <View style={styles.card}>
-            {/* Log in / Sign up switch */}
             <View style={styles.segment}>
-              <Pressable
-                style={[
-                  styles.segmentItem,
-                  mode === "login" && styles.segmentItemActive,
-                ]}
-                onPress={() => setMode("login")}
-              >
-                <Text
+              {[
+                ["login", "Log in"],
+                ["signup", "Sign up"],
+              ].map(([key, text]) => (
+                <Pressable
+                  key={key}
                   style={[
-                    styles.segmentText,
-                    mode === "login" && styles.segmentTextActive,
+                    styles.segmentItem,
+                    mode === key && styles.segmentItemActive,
                   ]}
+                  onPress={() => setMode(key)}
                 >
-                  Log in
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.segmentItem,
-                  mode === "signup" && styles.segmentItemActive,
-                ]}
-                onPress={() => setMode("signup")}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    mode === "signup" && styles.segmentTextActive,
-                  ]}
-                >
-                  Sign up
-                </Text>
-              </Pressable>
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      mode === key && styles.segmentTextActive,
+                    ]}
+                  >
+                    {text}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
 
-            {mode === "signup" && (
+            {!isLogin && (
               <>
                 <Text style={styles.label}>Full name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="Juana Dela Cruz"
-                  placeholderTextColor={colors.inkSoft}
-                />
+                <View style={styles.field}>
+                  <Icon
+                    name="person-outline"
+                    size={18}
+                    color={colors.inkSoft}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholder="Juana Dela Cruz"
+                    placeholderTextColor={colors.inkSoft}
+                  />
+                </View>
               </>
             )}
 
             <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholder="you@example.com"
-              placeholderTextColor={colors.inkSoft}
-            />
+            <View style={styles.field}>
+              <Icon name="mail-outline" size={18} color={colors.inkSoft} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="you@example.com"
+                placeholderTextColor={colors.inkSoft}
+              />
+            </View>
 
             <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordWrap}>
+            <View style={styles.field}>
+              <Icon
+                name="lock-closed-outline"
+                size={18}
+                color={colors.inkSoft}
+              />
               <TextInput
-                style={[styles.input, styles.passwordInput]}
+                style={styles.input}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -184,13 +204,14 @@ export default function Login() {
                 placeholderTextColor={colors.inkSoft}
               />
               <Pressable
-                style={styles.eye}
                 onPress={() => setShowPassword((v) => !v)}
-                hitSlop={8}
+                hitSlop={10}
               >
-                <Text style={styles.eyeText}>
-                  {showPassword ? "Hide" : "Show"}
-                </Text>
+                <Icon
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={colors.plum}
+                />
               </Pressable>
             </View>
 
@@ -206,7 +227,7 @@ export default function Login() {
                 </View>
               ) : (
                 <Text style={styles.buttonText}>
-                  {mode === "login" ? "Log in" : "Create account"}
+                  {isLogin ? "Log in" : "Create account"}
                 </Text>
               )}
             </Pressable>
@@ -226,26 +247,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
-
-  box: {
-    width: "100%",
-    maxWidth: 400,
-    alignItems: "center",
-  },
-
-  logo: {
-    width: 190,
-    height: 174,
-    marginBottom: spacing.sm,
-  },
-
-  heading: {
-    ...type.display,
-    textAlign: "center",
-  },
-
+  box: { width: "100%", maxWidth: layout.maxWidth, alignItems: "center" },
+  heading: { ...type.display, textAlign: "center", marginTop: spacing.sm },
   subtitle: {
     textAlign: "center",
     color: colors.inkSoft,
@@ -253,88 +258,39 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: spacing.lg,
   },
-
-  card: {
-    ...shared.card,
-    width: "100%",
-  },
-
+  card: { ...shared.card, width: "100%" },
   segment: {
     flexDirection: "row",
     backgroundColor: colors.plumTint,
     borderRadius: radius.pill,
     padding: 4,
   },
-
   segmentItem: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: radius.pill,
     alignItems: "center",
   },
-
-  segmentItemActive: {
-    backgroundColor: colors.white,
-  },
-
-  segmentText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.inkSoft,
-  },
-
-  segmentTextActive: {
-    color: colors.plum,
-    fontWeight: "700",
-  },
-
-  label: {
-    ...type.label,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
-
-  input: {
-    ...shared.input,
-  },
-
-  passwordWrap: {
-    justifyContent: "center",
-  },
-
-  passwordInput: {
-    paddingRight: 64,
-  },
-
-  eye: {
-    position: "absolute",
-    right: 14,
-  },
-
-  eyeText: {
-    color: colors.plum,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  button: {
-    ...shared.buttonPrimary,
-    marginTop: spacing.xl,
-  },
-
-  busyRow: {
+  segmentItemActive: { backgroundColor: colors.white },
+  segmentText: { fontSize: 14, fontWeight: "600", color: colors.inkSoft },
+  segmentTextActive: { color: colors.plum, fontWeight: "700" },
+  label: { ...type.label, marginTop: spacing.md, marginBottom: 6 },
+  field: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    ...shared.input,
+    paddingVertical: 0,
   },
-
-  buttonText: {
-    ...shared.buttonPrimaryText,
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 16,
+    color: colors.ink,
+    paddingVertical: 13,
   },
-
-  footer: {
-    marginTop: spacing.lg,
-    color: colors.inkSoft,
-    fontSize: 12,
-  },
+  button: { ...shared.buttonPrimary, marginTop: spacing.xl },
+  busyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  buttonText: { ...shared.buttonPrimaryText },
+  footer: { marginTop: spacing.lg, color: colors.inkSoft, fontSize: 12 },
 });
