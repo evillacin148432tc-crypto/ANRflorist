@@ -2,21 +2,37 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   FlatList,
-  Pressable,
   KeyboardAvoidingView,
+  Keyboard,
   StyleSheet,
   Platform,
-  Image,
+  Alert,
 } from "react-native";
 
 import { useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { mergeMessages } from "../lib/chatMerge";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
 import Icon from "../lib/Icon";
+import ZoomImage from "../lib/ZoomImage";
+import ChatImage from "../lib/ChatImage";
+import ChatComposer from "../lib/ChatComposer";
+import { pickChatImage, uploadChatImage } from "../lib/chatUpload";
+
+function showMessage(title, message) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+}
+
+// Height of CustomerTabBar without the bottom safe-area inset.
+const TAB_BAR_HEIGHT = 58;
 
 const STATUS_LABEL = {
   pending: "Order placed",
@@ -41,6 +57,14 @@ const STATUS_COLOR = {
   delivered: colors.fern,
   cancelled: colors.brick,
 };
+
+// Heading for an order: the product name, or "Name +N more".
+// Falls back to the short order number until the items have loaded.
+function orderTitle(items, orderId) {
+  if (!items || items.length === 0) return `Order #${orderId.slice(0, 8)}`;
+  const first = items[0].product?.name || "Item";
+  return items.length > 1 ? `${first} +${items.length - 1} more` : first;
+}
 
 function formatTime(iso) {
   const d = new Date(iso);
@@ -68,12 +92,35 @@ function mergeFeed(statusRows, messageRows) {
 
 export default function Support() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const listRef = useRef(null);
 
   const [statusRows, setStatusRows] = useState([]);
   const [messageRows, setMessageRows] = useState([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [image, setImage] = useState(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [itemsByOrder, setItemsByOrder] = useState({});
+  const itemsLoaded = useRef(new Set());
+
+  // The bottom tab bar floats over the screen (position: absolute), so the
+  // message box has to sit above it. While typing, the keyboard takes over
+  // that space, so the tab bar steps aside.
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const a = Keyboard.addListener(showEvt, () => setKeyboardOpen(true));
+    const b = Keyboard.addListener(hideEvt, () => setKeyboardOpen(false));
+    return () => {
+      a.remove();
+      b.remove();
+    };
+  }, []);
+
+  const tabBarSpace = TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm);
 
   const load = useCallback(async () => {
     if (!user?.id) {
@@ -98,16 +145,48 @@ export default function Support() {
         .order("created_at", { ascending: true }),
     ]);
 
-    if (!statusResult.error) setStatusRows(statusResult.data || []);
-    else console.log("ORDER STATUS HISTORY LOAD ERROR:", statusResult.error);
+    if (!statusResult.error) {
+      const rows = statusResult.data || [];
+      setStatusRows(rows);
+
+      // Fetch the products for any order we haven't loaded yet (once each).
+      const ids = [...new Set(rows.map((r) => r.order_id))].filter(
+        (id) => id && !itemsLoaded.current.has(id),
+      );
+      if (ids.length > 0) {
+        ids.forEach((id) => itemsLoaded.current.add(id));
+
+        const { data: items, error: itemsError } = await supabase
+          .from("order_items")
+          .select(
+            "order_id, quantity, price, product:product_id (name, image_url)",
+          )
+          .in("order_id", ids);
+
+        if (itemsError) {
+          console.log("ORDER ITEMS LOAD ERROR:", itemsError);
+          ids.forEach((id) => itemsLoaded.current.delete(id)); // try again next time
+        } else {
+          const grouped = {};
+          (items || []).forEach((it) => {
+            (grouped[it.order_id] = grouped[it.order_id] || []).push(it);
+          });
+          setItemsByOrder((prev) => ({ ...prev, ...grouped }));
+        }
+      }
+    } else console.log("ORDER STATUS HISTORY LOAD ERROR:", statusResult.error);
 
     if (!messageResult.error) setMessageRows(messageResult.data || []);
     else console.log("CHAT MESSAGES LOAD ERROR:", messageResult.error);
   }, [user?.id]);
 
+  // Load when the screen opens, then quietly re-check every few seconds as a
+  // safety net in case a realtime event is ever missed.
   useFocusEffect(
     useCallback(() => {
       load();
+      const timer = setInterval(load, 4000);
+      return () => clearInterval(timer);
     }, [load]),
   );
 
@@ -135,7 +214,8 @@ export default function Support() {
           table: "chat_messages",
           filter: `customer_id=eq.${user.id}`,
         },
-        () => load(),
+        (payload) =>
+          setMessageRows((prev) => mergeMessages(prev, [payload.new])),
       )
       .subscribe();
 
@@ -145,25 +225,58 @@ export default function Support() {
     };
   }, [user?.id, load]);
 
+  async function choosePhoto() {
+    const asset = await pickChatImage();
+    if (asset) setImage(asset);
+  }
+
   async function send() {
     const body = draft.trim();
-    if (!body || !user?.id) return;
+    if ((!body && !image) || !user?.id) return;
 
-    setDraft("");
     setSending(true);
 
-    const { error } = await supabase.from("chat_messages").insert({
-      customer_id: user.id,
-      sender_role: "customer",
-      sender_id: user.id,
-      body,
-    });
+    // Photos go into this customer's folder in the private chat bucket.
+    let imagePath = null;
+    if (image) {
+      const { path, error: uploadError } = await uploadChatImage(
+        user.id,
+        image,
+      );
+      if (uploadError) {
+        setSending(false);
+        showMessage("Upload Failed", uploadError.message);
+        return;
+      }
+      imagePath = path;
+    }
+
+    const sentImage = image;
+    setDraft("");
+    setImage(null);
+
+    const { data: saved, error } = await supabase
+      .from("chat_messages")
+      .insert({
+        customer_id: user.id,
+        sender_role: "customer",
+        sender_id: user.id,
+        body,
+        image_url: imagePath,
+      })
+      .select("id, sender_role, body, image_url, created_at")
+      .single();
 
     setSending(false);
+
+    // Show the message right away; the realtime copy is de-duplicated by id.
+    if (saved) setMessageRows((prev) => mergeMessages(prev, [saved]));
 
     if (error) {
       console.log("SEND MESSAGE ERROR:", error);
       setDraft(body); // put it back so nothing is lost
+      setImage(sentImage);
+      showMessage("Not Sent", "Your message could not be sent. Try again.");
     }
   }
 
@@ -171,7 +284,7 @@ export default function Support() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: spacing.lg + insets.top }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Text style={styles.title}>Chat</Text>
@@ -199,8 +312,8 @@ export default function Support() {
               <View>
                 {isNewOrder && (
                   <View style={styles.orderDivider}>
-                    <Text style={styles.orderDividerText}>
-                      Order #{item.order_id.slice(0, 8)}
+                    <Text style={styles.orderDividerText} numberOfLines={1}>
+                      {orderTitle(itemsByOrder[item.order_id], item.order_id)}
                       {item.order?.delivery_barangay
                         ? ` · ${item.order.delivery_barangay}`
                         : ""}
@@ -229,6 +342,37 @@ export default function Support() {
                     {!!item.remarks && (
                       <Text style={styles.systemText}>{item.remarks}</Text>
                     )}
+                    {item.status === "pending" &&
+                      (itemsByOrder[item.order_id] || []).map((it, idx) => (
+                        <View key={idx} style={styles.itemRow}>
+                          {it.product?.image_url ? (
+                            <ZoomImage
+                              uri={it.product.image_url}
+                              caption={it.product.name}
+                              style={styles.itemImage}
+                            />
+                          ) : (
+                            <View
+                              style={[styles.itemImage, styles.itemImageEmpty]}
+                            >
+                              <Icon
+                                name="flower-outline"
+                                size={20}
+                                color={colors.inkSoft}
+                              />
+                            </View>
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.itemName} numberOfLines={2}>
+                              {it.product?.name || "Item"}
+                            </Text>
+                            <Text style={styles.itemQtyLine}>
+                              Qty {it.quantity}
+                            </Text>
+                          </View>
+                          <Text style={styles.itemPrice}>₱{it.price}</Text>
+                        </View>
+                      ))}
                     {item.status === "pending" && item.order?.total_amount && (
                       <Text style={styles.systemText}>
                         Total ₱{item.order.total_amount}
@@ -259,20 +403,21 @@ export default function Support() {
                 style={[styles.bubble, isCustomer && styles.bubbleCustomer]}
               >
                 {!!item.image_url && (
-                  <Image
-                    source={{ uri: item.image_url }}
+                  <ChatImage
+                    value={item.image_url}
                     style={styles.bubbleImage}
-                    resizeMode="contain"
                   />
                 )}
-                <Text
-                  style={[
-                    styles.bubbleText,
-                    isCustomer && styles.bubbleTextCustomer,
-                  ]}
-                >
-                  {item.body}
-                </Text>
+                {!!item.body && (
+                  <Text
+                    style={[
+                      styles.bubbleText,
+                      isCustomer && styles.bubbleTextCustomer,
+                    ]}
+                  >
+                    {item.body}
+                  </Text>
+                )}
                 <Text
                   style={[
                     styles.bubbleTime,
@@ -296,28 +441,22 @@ export default function Support() {
         }
       />
 
-      <View style={styles.composer}>
-        <TextInput
-          style={styles.input}
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Message ANR Florist..."
-          placeholderTextColor={colors.inkSoft}
-          multiline
-        />
-        <Pressable
-          style={[
-            styles.sendButton,
-            (!draft.trim() || sending) && { opacity: 0.5 },
-          ]}
-          onPress={send}
-          disabled={!draft.trim() || sending}
-        >
-          <Text style={styles.sendText}>Send</Text>
-        </Pressable>
-      </View>
+      <ChatComposer
+        style={[
+          styles.composer,
+          { paddingBottom: keyboardOpen ? spacing.sm : tabBarSpace },
+        ]}
+        draft={draft}
+        onChangeDraft={setDraft}
+        image={image}
+        onPickImage={choosePhoto}
+        onClearImage={() => setImage(null)}
+        onSend={send}
+        sending={sending}
+        placeholder="Message ANR Florist..."
+      />
 
-      <CustomerTabBar active="chat" />
+      {!keyboardOpen && <CustomerTabBar active="chat" />}
     </KeyboardAvoidingView>
   );
 }
@@ -360,6 +499,22 @@ const styles = StyleSheet.create({
   },
   systemTitle: { fontSize: 14, fontWeight: "700" },
   systemText: { fontSize: 13, color: colors.ink, marginTop: 4 },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  itemImage: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.sm,
+    backgroundColor: colors.line,
+  },
+  itemImageEmpty: { alignItems: "center", justifyContent: "center" },
+  itemName: { color: colors.ink, fontSize: 13, fontWeight: "600" },
+  itemQtyLine: { color: colors.inkSoft, fontSize: 12, marginTop: 2 },
+  itemPrice: { color: colors.ink, fontSize: 13, fontWeight: "600" },
   systemTime: { fontSize: 11, color: colors.inkSoft, marginTop: 6 },
 
   bubbleRow: { marginBottom: spacing.sm, flexDirection: "row" },
@@ -402,29 +557,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 15, fontWeight: "700", color: colors.ink },
   emptyText: { color: colors.inkSoft, textAlign: "center", fontSize: 13 },
 
-  composer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    fontSize: 14,
-    maxHeight: 100,
-    backgroundColor: colors.white,
-    color: colors.ink,
-  },
-  sendButton: {
-    backgroundColor: colors.plum,
-    borderRadius: radius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.lg,
-  },
-  sendText: { color: colors.white, fontWeight: "700" },
+  composer: { paddingTop: spacing.sm },
 });

@@ -22,6 +22,7 @@ import { useAuth } from "../lib/AuthProvider";
 import { useCart } from "../lib/CartProvider";
 import { TAGUM_BARANGAYS } from "../lib/barangays";
 import CustomerTabBar from "../lib/CustomerTabBar";
+import OrderBell from "../lib/OrderBell";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   colors,
@@ -212,14 +213,12 @@ export default function CustomerHome() {
   // ---------------- Dashboard data (verified only) ----------------
   const [categories, setCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
-  const [activeOrderCount, setActiveOrderCount] = useState(0);
   const [work, setWork] = useState([]);
 
   useEffect(() => {
     if (status === "verified") {
       loadCategories();
       loadRecommended();
-      loadActiveOrderCount();
       loadPortfolio(8).then(setWork);
     }
   }, [status]);
@@ -273,16 +272,6 @@ export default function CustomerHome() {
       .limit(6);
 
     setRecommended(fallback || []);
-  }
-
-  async function loadActiveOrderCount() {
-    const { count } = await supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("customer_id", user.id)
-      .not("order_status", "in", "(delivered,cancelled)");
-
-    setActiveOrderCount(count ?? 0);
   }
 
   // ---------------- Render: Pending ----------------
@@ -353,11 +342,7 @@ export default function CustomerHome() {
               </View>
             </View>
             <View style={styles.topIcons}>
-              <BellCart
-                icon="notifications-outline"
-                count={activeOrderCount}
-                to="/orders"
-              />
+              <OrderBell />
               <BellCart icon="cart-outline" count={totalItems} to="/cart" />
             </View>
           </View>

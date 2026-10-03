@@ -15,6 +15,7 @@ import { supabase } from "../lib/supabase";
 import { useCart } from "../lib/CartProvider";
 import { useAuth } from "../lib/AuthProvider";
 import CustomerTabBar from "../lib/CustomerTabBar";
+import OrderBell from "../lib/OrderBell";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius, type, shadow, layout } from "../lib/theme";
 import Icon from "../lib/Icon";
@@ -202,16 +203,7 @@ export default function Catalog() {
           <Text style={styles.title}>Explore</Text>
 
           <View style={styles.topIcons}>
-            <Pressable
-              style={styles.iconCircle}
-              onPress={() => router.push("/orders")}
-            >
-              <Icon
-                name="notifications-outline"
-                size={20}
-                color={colors.plum}
-              />
-            </Pressable>
+            <OrderBell />
 
             <Pressable
               style={styles.iconCircle}

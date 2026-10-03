@@ -69,6 +69,52 @@ export function AuthProvider({ children }) {
     };
   }, [userId]);
 
+  // Live profile updates: when an admin approves/rejects this customer's ID
+  // (or changes their role), the app updates instantly, with no refresh.
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`my-profile-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${userId}`,
+        },
+        (payload) => {
+          setProfile((prev) => ({ ...(prev || {}), ...payload.new }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  // Safety net while waiting for approval: quietly re-check every few seconds
+  // in case a realtime event is missed. Only runs while status is "pending".
+  const waitingForApproval = profile?.verification_status === "pending";
+
+  useEffect(() => {
+    if (!userId || !waitingForApproval) return;
+
+    const timer = setInterval(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (data) setProfile((prev) => ({ ...(prev || {}), ...data }));
+    }, 6000);
+
+    return () => clearInterval(timer);
+  }, [userId, waitingForApproval]);
+
   // "loading" stays true until we know both the session AND the role
   const loading = !checkedSession || (!!session && !profile);
 

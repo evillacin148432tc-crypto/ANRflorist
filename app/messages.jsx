@@ -29,10 +29,12 @@ export default function Messages() {
   const load = useCallback(async () => {
     // Newest first, then grouped by customer in JS below so each customer
     // appears once with their most recent message and unread count.
+    // (Plain query, no joins: a join on a column that doesn't exist makes the
+    // whole query fail and the inbox shows "0 conversations".)
     const { data, error } = await supabase
       .from("chat_messages")
       .select(
-        "id, customer_id, sender_role, body, created_at, read_at, customer:customer_id (full_name, email)",
+        "id, customer_id, sender_role, body, image_url, created_at, read_at",
       )
       .order("created_at", { ascending: false })
       .limit(500);
@@ -42,11 +44,30 @@ export default function Messages() {
       return;
     }
 
+    // Look up the customers' names separately.
+    const ids = [...new Set(data.map((r) => r.customer_id).filter(Boolean))];
+    const names = {};
+    if (ids.length > 0) {
+      const { data: people, error: peopleError } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", ids);
+
+      if (peopleError) console.log("MESSAGES NAMES ERROR:", peopleError);
+      (people || []).forEach((p) => {
+        names[p.id] = p;
+      });
+    }
+
     const byCustomer = new Map();
     for (const row of data) {
       const existing = byCustomer.get(row.customer_id);
       if (!existing) {
-        byCustomer.set(row.customer_id, { ...row, unread: 0 });
+        byCustomer.set(row.customer_id, {
+          ...row,
+          customer: names[row.customer_id],
+          unread: 0,
+        });
       }
       const entry = byCustomer.get(row.customer_id);
       if (row.sender_role === "customer" && !row.read_at) entry.unread += 1;
@@ -58,6 +79,8 @@ export default function Messages() {
   useFocusEffect(
     useCallback(() => {
       load();
+      const timer = setInterval(load, 5000); // safety net for missed realtime events
+      return () => clearInterval(timer);
     }, [load]),
   );
 
@@ -81,8 +104,7 @@ export default function Messages() {
   }, [load]);
 
   const filtered = threads.filter((t) => {
-    const text =
-      `${t.customer?.full_name || ""} ${t.customer?.email || ""}`.toLowerCase();
+    const text = (t.customer?.full_name || "Customer").toLowerCase();
     return text.includes(search.toLowerCase());
   });
 
@@ -103,7 +125,7 @@ export default function Messages() {
         style={styles.search}
         value={search}
         onChangeText={setSearch}
-        placeholder="Search by name or email..."
+        placeholder="Search by name..."
         placeholderTextColor={colors.inkSoft}
       />
 
@@ -113,15 +135,10 @@ export default function Messages() {
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
-          const initial = (
-            item.customer?.full_name ||
-            item.customer?.email ||
-            "?"
-          )
-            .trim()[0]
-            ?.toUpperCase();
-          const preview =
-            item.sender_role === "staff" ? `You: ${item.body}` : item.body;
+          const displayName = item.customer?.full_name || "Customer";
+          const initial = displayName.trim()[0]?.toUpperCase();
+          const text = item.body || (item.image_url ? "📷 Photo" : "");
+          const preview = item.sender_role === "staff" ? `You: ${text}` : text;
 
           return (
             <Pressable
@@ -131,10 +148,7 @@ export default function Messages() {
                   pathname: "/chat-thread",
                   params: {
                     customerId: item.customer_id,
-                    name:
-                      item.customer?.full_name ||
-                      item.customer?.email ||
-                      "Customer",
+                    name: displayName,
                   },
                 })
               }
@@ -146,7 +160,7 @@ export default function Messages() {
               <View style={{ flex: 1 }}>
                 <View style={styles.rowTop}>
                   <Text style={styles.name} numberOfLines={1}>
-                    {item.customer?.full_name || item.customer?.email}
+                    {displayName}
                   </Text>
                   <Text style={styles.time}>{formatTime(item.created_at)}</Text>
                 </View>

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -219,8 +219,27 @@ export default function ReviewCustomers() {
   useFocusEffect(
     useCallback(() => {
       load();
+      const timer = setInterval(load, 8000); // safety net for missed realtime events
+      return () => clearInterval(timer);
     }, []),
   );
+
+  // Live updates: a customer submitting their ID shows up here immediately,
+  // and one approved/rejected on another device disappears.
+  useEffect(() => {
+    const channel = supabase
+      .channel("pending-customers")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => load(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   async function load() {
     const { data, error } = await supabase

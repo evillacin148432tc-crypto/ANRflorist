@@ -124,6 +124,25 @@ export default function Index() {
     };
   }, []);
 
+  // Live updates: the "pending customers" count follows ID submissions and
+  // approvals as they happen.
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard-profiles")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          loadPendingCount();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), 3000);
