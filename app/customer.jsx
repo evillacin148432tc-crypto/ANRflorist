@@ -14,7 +14,7 @@ import {
 } from "react-native";
 
 import * as ImagePicker from "expo-image-picker";
-import * as Location from "expo-location";
+import LocationPicker from "../lib/LocationPicker";
 import { useRouter } from "expo-router";
 
 import { supabase } from "../lib/supabase";
@@ -33,6 +33,8 @@ import {
   layout,
 } from "../lib/theme";
 import Icon from "../lib/Icon";
+import { categoryIcon } from "../lib/categoryIcon";
+import { loadPortfolio } from "../lib/portfolio";
 
 const TAGUM_BOX = { minLat: 7.3, maxLat: 7.6, minLng: 125.72, maxLng: 125.95 };
 
@@ -99,7 +101,6 @@ export default function CustomerHome() {
   );
   const [idImage, setIdImage] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [locating, setLocating] = useState(false);
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -111,44 +112,22 @@ export default function CustomerHome() {
     if (!result.canceled) setIdImage(result.assets[0]);
   }
 
-  async function useMyLocation() {
-    try {
-      setLocating(true);
-      const { status: permission } =
-        await Location.requestForegroundPermissionsAsync();
+  // Called when the customer taps the map or drags the pin
+  function handlePick(lat, lng) {
+    const inside =
+      lat >= TAGUM_BOX.minLat &&
+      lat <= TAGUM_BOX.maxLat &&
+      lng >= TAGUM_BOX.minLng &&
+      lng <= TAGUM_BOX.maxLng;
 
-      if (permission !== "granted") {
-        showMessage(
-          "Permission Needed",
-          "Location permission was not granted.",
-        );
-        return;
-      }
-
-      const pos = await Location.getCurrentPositionAsync({});
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-
-      const inside =
-        lat >= TAGUM_BOX.minLat &&
-        lat <= TAGUM_BOX.maxLat &&
-        lng >= TAGUM_BOX.minLng &&
-        lng <= TAGUM_BOX.maxLng;
-
-      if (!inside) {
-        showMessage(
-          "Outside Tagum City",
-          "Your current location looks like it is outside Tagum City, so the pin was not saved. You can still register using your barangay and address.",
-        );
-        return;
-      }
-
-      setPin({ lat, lng });
-    } catch (e) {
-      showMessage("Location Error", "Could not get your location.");
-    } finally {
-      setLocating(false);
+    if (!inside) {
+      showMessage(
+        "Outside Tagum City",
+        "That spot is outside Tagum City, so the pin was not saved. Please pin a place inside Tagum City.",
+      );
+      return;
     }
+    setPin({ lat, lng });
   }
 
   async function submitRegistration() {
@@ -234,12 +213,14 @@ export default function CustomerHome() {
   const [categories, setCategories] = useState([]);
   const [recommended, setRecommended] = useState([]);
   const [activeOrderCount, setActiveOrderCount] = useState(0);
+  const [work, setWork] = useState([]);
 
   useEffect(() => {
     if (status === "verified") {
       loadCategories();
       loadRecommended();
       loadActiveOrderCount();
+      loadPortfolio(8).then(setWork);
     }
   }, [status]);
 
@@ -434,7 +415,11 @@ export default function CustomerHome() {
                 }
               >
                 <View style={styles.categoryDot}>
-                  <Icon name="flower-outline" size={16} color={colors.plum} />
+                  <Icon
+                    name={categoryIcon(item)}
+                    size={16}
+                    color={colors.plum}
+                  />
                 </View>
                 <Text style={styles.categoryLabel} numberOfLines={1}>
                   {item}
@@ -442,6 +427,55 @@ export default function CustomerHome() {
               </Pressable>
             )}
           />
+
+          {work.length > 0 && (
+            <>
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>Our Work</Text>
+                <Pressable onPress={() => router.push("/portfolio")}>
+                  <Text style={styles.seeAll}>See all</Text>
+                </Pressable>
+              </View>
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={work}
+                keyExtractor={(w) => String(w.id)}
+                style={{
+                  marginHorizontal: -spacing.lg,
+                  marginBottom: spacing.xl,
+                }}
+                contentContainerStyle={{
+                  gap: spacing.md,
+                  paddingHorizontal: spacing.lg,
+                }}
+                renderItem={({ item }) => (
+                  <Pressable onPress={() => router.push("/portfolio")}>
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={styles.workPhoto}
+                    />
+                  </Pressable>
+                )}
+              />
+            </>
+          )}
+
+          <Pressable
+            style={styles.shopCard}
+            onPress={() => router.push("/about")}
+          >
+            <View style={styles.shopIcon}>
+              <Icon name="storefront-outline" size={22} color={colors.plum} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.shopTitle}>Visit our shop</Text>
+              <Text style={styles.shopSub} numberOfLines={1}>
+                Map, contact info & hours
+              </Text>
+            </View>
+            <Icon name="chevron-forward" size={18} color={colors.inkSoft} />
+          </Pressable>
 
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Recommended for you</Text>
@@ -588,24 +622,34 @@ export default function CustomerHome() {
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.cardTitle}>Map pin (optional)</Text>
+        <Text style={styles.cardTitle}>Pin your location (optional)</Text>
         <Text style={styles.hint}>
-          Helps our rider find your exact spot. Only works if you are at your
-          delivery address right now.
+          Tap the map to drop a pin on your house or landmark. You can drag the
+          pin to adjust it.
         </Text>
-        <Pressable
-          style={styles.outlineButton}
-          onPress={useMyLocation}
-          disabled={locating}
-        >
-          <Icon name="locate-outline" size={18} color={colors.plum} />
-          <Text style={styles.outlineText}>
-            {locating ? "Getting location..." : "Use my current location"}
-          </Text>
-        </Pressable>
-        {pin && (
-          <Text style={styles.pinText}>
-            Pin saved: {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+        <LocationPicker
+          initial={pin}
+          bounds={{
+            minLat: TAGUM_BOX.minLat,
+            maxLat: TAGUM_BOX.maxLat,
+            minLng: TAGUM_BOX.minLng,
+            maxLng: TAGUM_BOX.maxLng,
+          }}
+          onPick={handlePick}
+        />
+        {pin ? (
+          <View style={styles.pinRow}>
+            <Icon name="checkmark-circle" size={18} color={colors.fern} />
+            <Text style={[styles.pinText, { flex: 1, marginTop: 0 }]}>
+              Pin saved: {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+            </Text>
+            <Pressable onPress={() => setPin(null)} hitSlop={8}>
+              <Text style={styles.pinClear}>Clear</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.pinHint}>
+            No pin yet. You can still register without one.
           </Text>
         )}
       </View>
@@ -788,6 +832,34 @@ const styles = StyleSheet.create({
   },
   categoryLabel: { fontSize: 13, fontWeight: "600", color: colors.ink },
 
+  workPhoto: {
+    width: 130,
+    height: 160,
+    borderRadius: radius.md,
+    backgroundColor: colors.plumTint,
+  },
+  shopCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+    ...shadow,
+  },
+  shopIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shopTitle: { fontSize: 15, fontWeight: "700", color: colors.ink },
+  shopSub: { fontSize: 12, color: colors.inkSoft, marginTop: 1 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
   recCard: {
     backgroundColor: colors.white,
@@ -862,6 +934,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   outlineText: { color: colors.plum, fontWeight: "700" },
+  pinRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  pinClear: { color: colors.brick, fontWeight: "700", fontSize: 13 },
+  pinHint: { marginTop: 10, color: colors.inkSoft, fontSize: 12 },
   pinText: { marginTop: 8, color: colors.fern, fontWeight: "600" },
   preview: {
     width: "100%",

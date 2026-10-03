@@ -7,8 +7,8 @@ import {
   Pressable,
   KeyboardAvoidingView,
   StyleSheet,
-  Linking,
   Platform,
+  Image,
 } from "react-native";
 
 import { useFocusEffect } from "expo-router";
@@ -17,11 +17,6 @@ import { useAuth } from "../lib/AuthProvider";
 import CustomerTabBar from "../lib/CustomerTabBar";
 import { colors, spacing, radius, type } from "../lib/theme";
 import Icon from "../lib/Icon";
-
-// NOTE: replace these with ANR Florist's real numbers/links before using
-// this in production.
-const SHOP_PHONE = "+639000000000";
-const SHOP_MESSENGER_URL = "https://m.me/anrflorist";
 
 const STATUS_LABEL = {
   pending: "Order placed",
@@ -98,7 +93,7 @@ export default function Support() {
         .order("created_at", { ascending: true }),
       supabase
         .from("chat_messages")
-        .select("id, sender_role, body, created_at")
+        .select("id, sender_role, body, image_url, created_at")
         .eq("customer_id", user.id)
         .order("created_at", { ascending: true }),
     ]);
@@ -180,33 +175,6 @@ export default function Support() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Text style={styles.title}>Chat</Text>
-
-      {/* Compact "get in touch" bar */}
-      <View style={styles.contactRow}>
-        <Pressable
-          style={styles.contactButton}
-          onPress={() => Linking.openURL(`tel:${SHOP_PHONE}`)}
-        >
-          <Icon name="call-outline" size={20} color={colors.plum} />
-          <Text style={styles.contactLabel}>Call</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.contactButton}
-          onPress={() => Linking.openURL(`sms:${SHOP_PHONE}`)}
-        >
-          <Icon name="chatbox-ellipses-outline" size={20} color={colors.plum} />
-          <Text style={styles.contactLabel}>Text</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.contactButton}
-          onPress={() => Linking.openURL(SHOP_MESSENGER_URL)}
-        >
-          <Icon name="logo-facebook" size={20} color={colors.plum} />
-          <Text style={styles.contactLabel}>Facebook</Text>
-        </Pressable>
-      </View>
 
       {/* Merged feed: automatic order updates + real messages with staff */}
       <FlatList
@@ -290,6 +258,13 @@ export default function Support() {
               <View
                 style={[styles.bubble, isCustomer && styles.bubbleCustomer]}
               >
+                {!!item.image_url && (
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={styles.bubbleImage}
+                    resizeMode="contain"
+                  />
+                )}
                 <Text
                   style={[
                     styles.bubbleText,
@@ -351,25 +326,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper, padding: spacing.lg },
   title: { ...type.display, marginBottom: spacing.md },
 
-  contactRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  contactButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.pill,
-    paddingVertical: 10,
-  },
-  contactLabel: { fontSize: 13, fontWeight: "700", color: colors.ink },
-
   orderDivider: {
     alignSelf: "center",
     backgroundColor: colors.line,
@@ -424,6 +380,13 @@ const styles = StyleSheet.create({
     borderColor: colors.plum,
     borderTopLeftRadius: radius.md,
     borderTopRightRadius: 4,
+  },
+  bubbleImage: {
+    width: 220,
+    height: 260,
+    borderRadius: radius.sm,
+    backgroundColor: colors.white,
+    marginBottom: 6,
   },
   bubbleText: { fontSize: 14, color: colors.ink },
   bubbleTextCustomer: { color: colors.white },

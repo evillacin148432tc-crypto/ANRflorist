@@ -47,6 +47,7 @@ export default function Cart() {
   const [address, setAddress] = useState(profile?.address ?? "");
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
+  const [payment, setPayment] = useState("cash"); // "cash" | "online"
   const [pickerOpen, setPickerOpen] = useState(!profile?.barangay);
   const insets = useSafeAreaInsets();
   const tabH = 64 + Math.max(insets.bottom, 8);
@@ -84,12 +85,20 @@ export default function Cart() {
       return;
     }
 
+    // Saves the payment choice and triggers the owner's automatic chat message
+    const { error: payError } = await supabase.rpc("set_order_payment", {
+      p_method: payment,
+    });
+    if (payError) console.log("SET PAYMENT ERROR:", payError);
+
     clear();
     showMessage(
       "Order Placed!",
-      "Thank you! We'll start preparing your order.",
+      payment === "online"
+        ? "Thank you! Please check Chat for our GCash QR code. Payment first, please."
+        : "Thank you! Please check Chat for the downpayment details.",
     );
-    router.replace("/orders");
+    router.replace("/support");
   }
 
   const count = items.reduce((s, i) => s + i.quantity, 0);
@@ -287,6 +296,59 @@ export default function Cart() {
                   placeholderTextColor={colors.inkSoft}
                 />
               </View>
+
+              <View style={styles.formCard}>
+                <View style={styles.formHead}>
+                  <View style={styles.formIcon}>
+                    <Icon name="wallet-outline" size={16} color={colors.plum} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sectionTitle}>Payment method</Text>
+                    <Text style={styles.hint}>Choose how you will pay.</Text>
+                  </View>
+                </View>
+
+                {[
+                  {
+                    key: "cash",
+                    icon: "cash-outline",
+                    title: "Cash",
+                    sub: "Downpayment first, balance on delivery",
+                  },
+                  {
+                    key: "online",
+                    icon: "phone-portrait-outline",
+                    title: "Online payment / GCash",
+                    sub: "Pay first by scanning our GCash QR",
+                  },
+                ].map((m) => (
+                  <Pressable
+                    key={m.key}
+                    onPress={() => setPayment(m.key)}
+                    style={[
+                      styles.payOption,
+                      payment === m.key && styles.payOptionActive,
+                    ]}
+                  >
+                    <View style={styles.payIcon}>
+                      <Icon name={m.icon} size={20} color={colors.plum} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.payTitle}>{m.title}</Text>
+                      <Text style={styles.paySub}>{m.sub}</Text>
+                    </View>
+                    <Icon
+                      name={
+                        payment === m.key
+                          ? "radio-button-on"
+                          : "radio-button-off"
+                      }
+                      size={22}
+                      color={payment === m.key ? colors.plum : colors.inkSoft}
+                    />
+                  </Pressable>
+                ))}
+              </View>
             </>
           )}
         </ScrollView>
@@ -457,6 +519,32 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.plum, borderColor: colors.plum },
   chipText: { color: colors.ink, fontSize: 13 },
   chipTextActive: { color: colors.white, fontWeight: "700" },
+
+  payOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    backgroundColor: colors.paper,
+  },
+  payOptionActive: {
+    borderColor: colors.plum,
+    backgroundColor: colors.plumTint,
+  },
+  payIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payTitle: { fontSize: 14, fontWeight: "700", color: colors.ink },
+  paySub: { fontSize: 12, color: colors.inkSoft, marginTop: 1 },
 
   checkoutBar: {
     position: "absolute",

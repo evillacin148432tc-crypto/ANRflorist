@@ -37,6 +37,8 @@ function Gate() {
       "wishlist",
       "support",
       "profile",
+      "portfolio",
+      "about",
     ];
     const onCustomerArea = customerRoutes.includes(first);
     const isStaff = role === "staff" || role === "admin";

@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   StyleSheet,
   Platform,
+  Image,
 } from "react-native";
 
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -35,7 +36,7 @@ export default function ChatThread() {
 
     const { data, error } = await supabase
       .from("chat_messages")
-      .select("id, sender_role, body, created_at")
+      .select("id, sender_role, body, image_url, created_at")
       .eq("customer_id", customerId)
       .order("created_at", { ascending: true });
 
@@ -142,6 +143,18 @@ export default function ChatThread() {
               ]}
             >
               <View style={[styles.bubble, isStaff && styles.bubbleStaff]}>
+                {!!item.image_url && (
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={{
+                      width: 220,
+                      height: 260,
+                      borderRadius: 10,
+                      marginBottom: 6,
+                    }}
+                    resizeMode="contain"
+                  />
+                )}
                 <Text
                   style={[styles.bubbleText, isStaff && styles.bubbleTextStaff]}
                 >

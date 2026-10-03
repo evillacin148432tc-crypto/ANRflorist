@@ -17,7 +17,16 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthProvider";
 import { TAGUM_BARANGAYS } from "../lib/barangays";
 import CustomerTabBar from "../lib/CustomerTabBar";
-import { colors, spacing, radius, type } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  colors,
+  spacing,
+  radius,
+  type,
+  shared,
+  shadow,
+  layout,
+} from "../lib/theme";
 import Icon from "../lib/Icon";
 
 const AVATAR_BUCKET = "profile-photos";
@@ -64,6 +73,7 @@ function getBase64(asset) {
 
 export default function Profile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { profile, user, signOut, refreshProfile } = useAuth();
 
   const [editing, setEditing] = useState(false);
@@ -175,12 +185,60 @@ export default function Profile() {
     setEditing(false);
   }
 
+  const status = profile?.verification_status;
+
+  function cancelEdit() {
+    setPhone(profile?.phone ?? "");
+    setBarangay(profile?.barangay ?? "");
+    setAddress(profile?.address ?? "");
+    setEditing(false);
+  }
+
+  const InfoRow = ({ icon, label, children, last }) => (
+    <View style={[styles.infoRow, !last && styles.infoDivider]}>
+      <View style={styles.rowIcon}>
+        <Icon name={icon} size={17} color={colors.plum} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {children}
+      </View>
+    </View>
+  );
+
+  const MenuRow = ({ icon, text, onPress, last }) => (
+    <Pressable
+      style={({ pressed }) => [
+        styles.menuRow,
+        !last && styles.infoDivider,
+        pressed && styles.pressed,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.rowIcon}>
+        <Icon name={icon} size={17} color={colors.plum} />
+      </View>
+      <Text style={styles.menuText}>{text}</Text>
+      <Icon name="chevron-forward" size={18} color={colors.inkSoft} />
+    </Pressable>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        <Text style={styles.title}>Profile</Text>
-
-        <View style={styles.avatarRow}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: insets.top + spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: 110 + insets.bottom,
+          width: "100%",
+          maxWidth: layout.maxWidth,
+          alignSelf: "center",
+        }}
+      >
+        {/* Avatar + name */}
+        <View style={styles.hero}>
           <Pressable
             onPress={pickAvatar}
             style={styles.avatarWrap}
@@ -190,10 +248,9 @@ export default function Profile() {
               <Image source={{ uri: avatarUrl }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Icon name="person" size={30} color={colors.plum} />
+                <Icon name="person" size={40} color={colors.plum} />
               </View>
             )}
-
             <View style={styles.avatarEditBadge}>
               {uploadingAvatar ? (
                 <Text style={{ fontSize: 12 }}>…</Text>
@@ -203,97 +260,151 @@ export default function Profile() {
             </View>
           </Pressable>
 
-          <View>
-            <Text style={styles.name}>{profile?.full_name || user?.email}</Text>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>
-                {profile?.verification_status === "verified"
-                  ? "Verified"
-                  : profile?.verification_status}
+          <Text style={styles.name} numberOfLines={1}>
+            {profile?.full_name || user?.email}
+          </Text>
+          <Text style={styles.email} numberOfLines={1}>
+            {user?.email}
+          </Text>
+          {!!status && (
+            <View
+              style={[
+                styles.statusPill,
+                status !== "verified" && styles.statusPillWarn,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusPillText,
+                  status !== "verified" && { color: colors.marigold },
+                ]}
+              >
+                {status === "verified" ? "Verified" : status}
               </Text>
             </View>
-          </View>
+          )}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{user?.email}</Text>
-
-          <Text style={styles.label}>Mobile number</Text>
-          {editing ? (
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
-          ) : (
-            <Text style={styles.value}>{profile?.phone || "—"}</Text>
+        {/* Contact & delivery */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionLabel}>CONTACT & DELIVERY</Text>
+          {!editing && (
+            <Pressable style={styles.editPill} onPress={() => setEditing(true)}>
+              <Text style={styles.editPillText}>Edit</Text>
+            </Pressable>
           )}
+        </View>
 
-          <Text style={styles.label}>Barangay</Text>
-          {editing ? (
-            <View style={styles.chipRow}>
-              {TAGUM_BARANGAYS.map((b) => (
-                <Pressable
-                  key={b}
-                  onPress={() => setBarangay(b)}
-                  style={[styles.chip, barangay === b && styles.chipActive]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      barangay === b && styles.chipTextActive,
-                    ]}
-                  >
-                    {b}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.value}>
-              {profile?.barangay || "—"}, Tagum City
+        <View style={styles.groupCard}>
+          <InfoRow icon="mail-outline" label="Email">
+            <Text style={styles.rowValue} numberOfLines={1}>
+              {user?.email}
             </Text>
-          )}
+          </InfoRow>
 
-          <Text style={styles.label}>Street / Purok / House No.</Text>
-          {editing ? (
-            <TextInput
-              style={styles.input}
-              value={address}
-              onChangeText={setAddress}
-            />
-          ) : (
-            <Text style={styles.value}>{profile?.address || "—"}</Text>
-          )}
+          <InfoRow icon="call-outline" label="Mobile number">
+            {editing ? (
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            ) : (
+              <Text style={styles.rowValue}>{profile?.phone || "—"}</Text>
+            )}
+          </InfoRow>
 
-          {editing ? (
+          <InfoRow icon="location-outline" label="Barangay">
+            {editing ? (
+              <View style={styles.chipRow}>
+                {TAGUM_BARANGAYS.map((b) => (
+                  <Pressable
+                    key={b}
+                    onPress={() => setBarangay(b)}
+                    style={[styles.chip, barangay === b && styles.chipActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        barangay === b && styles.chipTextActive,
+                      ]}
+                    >
+                      {b}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.rowValue}>
+                {profile?.barangay || "—"}, Tagum City
+              </Text>
+            )}
+          </InfoRow>
+
+          <InfoRow icon="home-outline" label="Street / Purok / House No." last>
+            {editing ? (
+              <TextInput
+                style={styles.input}
+                value={address}
+                onChangeText={setAddress}
+              />
+            ) : (
+              <Text style={styles.rowValue}>{profile?.address || "—"}</Text>
+            )}
+          </InfoRow>
+        </View>
+
+        {editing && (
+          <View style={styles.editActions}>
             <Pressable
-              style={[styles.primaryButton, saving && { opacity: 0.6 }]}
+              style={styles.cancelButton}
+              onPress={cancelEdit}
+              disabled={saving}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.saveButton, saving && { opacity: 0.6 }]}
               onPress={save}
               disabled={saving}
             >
-              <Text style={styles.primaryButtonText}>
+              <Text style={styles.saveText}>
                 {saving ? "Saving…" : "Save changes"}
               </Text>
             </Pressable>
-          ) : (
-            <Pressable
-              style={styles.outlineButton}
-              onPress={() => setEditing(true)}
-            >
-              <Text style={styles.outlineText}>Edit details</Text>
-            </Pressable>
-          )}
-        </View>
+          </View>
+        )}
 
-        <Pressable
-          style={styles.linkRow}
-          onPress={() => router.push("/orders")}
+        {/* Account */}
+        <Text
+          style={[
+            styles.sectionLabel,
+            { marginTop: spacing.xl, marginBottom: spacing.sm },
+          ]}
         >
-          <Text style={styles.linkText}>My orders →</Text>
-        </Pressable>
+          ACCOUNT
+        </Text>
+        <View style={styles.groupCard}>
+          <MenuRow
+            icon="cube-outline"
+            text="My orders"
+            onPress={() => router.push("/orders")}
+          />
+          <MenuRow
+            icon="heart-outline"
+            text="Wishlist"
+            onPress={() => router.push("/wishlist")}
+          />
+          <MenuRow
+            icon="chatbubble-outline"
+            text="Help & support"
+            last
+            onPress={() =>
+              router.push({ pathname: "/about", params: { focus: "contact" } })
+            }
+          />
+        </View>
 
         <Pressable style={styles.logoutButton} onPress={signOut}>
           <Text style={styles.logoutText}>Log out</Text>
@@ -306,130 +417,129 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper, padding: spacing.lg },
-  title: { ...type.display, marginBottom: spacing.lg },
+  container: { flex: 1, backgroundColor: colors.paper },
 
-  avatarRow: {
+  hero: { alignItems: "center", marginBottom: spacing.xl },
+  avatarWrap: { marginBottom: spacing.md },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.plumTint,
+    borderWidth: 3,
+    borderColor: colors.white,
+    ...shadow,
+  },
+  avatarPlaceholder: { alignItems: "center", justifyContent: "center" },
+  avatarEditBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.plumTint,
+    borderWidth: 2,
+    borderColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  name: { ...type.display, fontSize: 22 },
+  email: { color: colors.inkSoft, fontSize: 13, marginTop: 2 },
+  statusPill: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.fernTint,
+    borderRadius: radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 14,
+  },
+  statusPillWarn: { backgroundColor: colors.marigoldTint },
+  statusPillText: { color: colors.fern, fontWeight: "700", fontSize: 12 },
+
+  sectionHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    color: colors.inkSoft,
+  },
+  editPill: {
+    borderWidth: 1,
+    borderColor: colors.plum,
+    borderRadius: radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 14,
+  },
+  editPillText: { color: colors.plum, fontWeight: "700", fontSize: 12 },
+
+  groupCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: "hidden",
+    ...shadow,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+  },
+  infoDivider: { borderBottomWidth: 1, borderBottomColor: colors.line },
+  rowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.plumTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowLabel: { fontSize: 11, color: colors.inkSoft, fontWeight: "600" },
+  rowValue: { fontSize: 15, color: colors.ink, marginTop: 2 },
+  input: { ...shared.input, marginTop: 4, paddingVertical: 9 },
+
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paper,
+  },
+  chipActive: { backgroundColor: colors.plum, borderColor: colors.plum },
+  chipText: { color: colors.ink, fontSize: 12 },
+  chipTextActive: { color: colors.white, fontWeight: "700" },
+
+  editActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  cancelButton: { flex: 1, ...shared.buttonOutline },
+  cancelText: { color: colors.plum, fontWeight: "700" },
+  saveButton: { flex: 2, ...shared.buttonPrimary, paddingVertical: 13 },
+  saveText: { ...shared.buttonPrimaryText },
+
+  menuRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    marginBottom: spacing.lg,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
   },
-
-  avatarWrap: {
-    position: "relative",
-  },
-
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.plumTint,
-  },
-
-  avatarPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  avatarEditBadge: {
-    position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  name: { fontSize: 17, fontWeight: "700", color: colors.ink },
-
-  statusPill: {
-    marginTop: 4,
-    alignSelf: "flex-start",
-    backgroundColor: colors.fernTint,
-    borderRadius: radius.pill,
-    paddingVertical: 2,
-    paddingHorizontal: 10,
-  },
-
-  statusPillText: { color: colors.fern, fontSize: 12, fontWeight: "700" },
-
-  card: {
-    ...{
-      backgroundColor: colors.card,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.line,
-      padding: spacing.lg,
-    },
-  },
-
-  label: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.inkSoft,
-    marginTop: spacing.md,
-  },
-  value: { fontSize: 15, color: colors.ink, marginTop: 2 },
-
-  input: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.sm,
-    padding: 10,
-    fontSize: 15,
-    backgroundColor: colors.white,
-    color: colors.ink,
-    marginTop: 4,
-  },
-
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
-  chip: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.plum, borderColor: colors.plum },
-  chipText: { fontSize: 12, color: colors.ink },
-  chipTextActive: { color: colors.white, fontWeight: "700" },
-
-  primaryButton: {
-    backgroundColor: colors.plum,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: spacing.lg,
-  },
-  primaryButtonText: { color: colors.white, fontWeight: "700" },
-
-  outlineButton: {
-    borderWidth: 1,
-    borderColor: colors.plum,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginTop: spacing.lg,
-  },
-  outlineText: { color: colors.plum, fontWeight: "700" },
-
-  linkRow: { marginTop: spacing.lg },
-  linkText: { color: colors.plum, fontWeight: "600" },
+  menuText: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.ink },
+  pressed: { backgroundColor: colors.plumTint },
 
   logoutButton: {
-    marginTop: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.brick,
-    borderRadius: radius.sm,
-    paddingVertical: 12,
+    marginTop: spacing.xl,
+    backgroundColor: colors.brickTint,
+    borderRadius: radius.md,
+    paddingVertical: 15,
     alignItems: "center",
   },
-  logoutText: { color: colors.brick, fontWeight: "700" },
+  logoutText: { color: colors.brick, fontWeight: "800", fontSize: 15 },
 });
